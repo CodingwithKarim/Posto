@@ -1,0 +1,94 @@
+body, h1, h2, p {
+    font-family: 'Poppins', sans-serif; /* Use Poppins font */
+}
+
+body {
+    background: linear-gradient(135deg, #3a4d7d, #6e7b94); /* Dark to light blue gradient */
+    min-height: 100vh; /* Ensure full screen height */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 0;
+    flex-direction: column;
+    color: #fff; /* White color for text */
+}
+
+.btn-primary {
+    padding: 8px 30px; /* Sleek padding */
+    font-size: 16px;     /* Adjusted font size */
+    height: 40px;        /* Standardized button height */
+    line-height: 20px;   /* Vertically centered text */
+    display: inline-block; /* Ensure button width is content-dependent */
+    border-radius: 5px;  /* Rounded corners */
+    background-color: #3498db; /* Blue color */
+    border: none;        /* Clean look */
+    color: white;        /* White text */
+    margin-top: 15px;     /* Space above the button */
+    width: auto;         /* Button width adjusts to text */
+    transition: background-color 0.3s ease; /* Smooth hover transition */
+}
+
+.btn-primary:hover {
+    background-color: #2980b9; /* Darker blue on hover */
+}
+
+.form-group {
+    margin-bottom: 15px;  /* More space between input fields */
+}
+
+.form-control {
+    height: 40px; /* Uniform height for inputs */
+    font-size: 16px; /* Adjusted font size */
+    border-radius: 5px; /* Rounded input fields */
+}
+
+.container {
+    margin-top: 50px; /* Space above the form */
+}
+
+.form-container {
+    text-align: left; /* Align button to left of inputs */
+}
+
+.form-container h1 {
+    font-size: 30px;
+    color: #fff; /* White for better contrast */
+    text-align: center;
+    margin-bottom: 25px;
+}
+
+.form-container p {
+    font-size: 16px;
+    color: #fff; /* White for contrast */
+}
+
+.form-container a {
+    color: #add8e6 !important; /* Light blue for links with !important */
+    font-weight: 600; /* Slightly bold for links */
+    text-decoration: none; /* Clean look without underlines */
+    transition: color 0.3s ease, text-decoration 0.3s ease; /* Smooth color and underline transition */
+}
+
+.form-container a:hover {
+    color: #87cefa !important; /* Slightly lighter blue on hover with !important */
+    text-decoration: underline !important; /* Underline on hover */
+}
+
+.form-container hr {
+    border: 0;
+    border-top: 1px solid #fff; /* White separator */
+    margin-top: 30px;
+}
+
+.form-container p {
+    font-size: 14px; /* Adjust font size for readability */
+    color: #f0f0f0; /* Light gray for better visibility */
+}
+
+#anchor {
+    color: #DFFFFF !important;
+}
+
+#anchor:hover {
+    color: #F1FFFF !important;
+}
