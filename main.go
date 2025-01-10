@@ -13,8 +13,6 @@ import (
 
 	"database/sql"
 
-	"github.com/joho/godotenv"
-
 	_ "github.com/go-sql-driver/mysql"
 
 	"App/internal/api"
@@ -22,13 +20,6 @@ import (
 
 	"github.com/gorilla/sessions"
 )
-
-func init() {
-	// Load .env file in local environment
-	if err := godotenv.Load(); err != nil {
-		log.Println(".env file not found, skipping")
-	}
-}
 
 func main() {
 	// Create a router to map incoming requests to handler functions
@@ -38,16 +29,16 @@ func main() {
 	mysqlUser := os.Getenv("MYSQL_USER")
 	mysqlPassword := os.Getenv("MYSQL_PASSWORD")
 	mysqlHost := os.Getenv("MYSQL_HOST")
-	mysqlPort := os.Getenv("MYSQL_PORT")
 	mysqlDB := os.Getenv("MYSQL_DB")
+	cookieStoreKey := os.Getenv("COOKIE_STORE_KEY")
 
 	// Ensure all necessary environment variables are present
-	if mysqlUser == "" || mysqlPassword == "" || mysqlHost == "" || mysqlPort == "" || mysqlDB == "" {
+	if mysqlUser == "" || mysqlPassword == "" || mysqlHost == "" || mysqlDB == "" || cookieStoreKey == "" {
 		log.Fatal("Required environment variables are missing.")
 	}
 
 	// Construct the connection string for MySQL
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", mysqlUser, mysqlPassword, mysqlHost, mysqlPort, mysqlDB)
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:3306)/%s", mysqlUser, mysqlPassword, mysqlHost, mysqlDB)
 
 	database, err := sql.Open("mysql", dsn)
 
@@ -66,9 +57,8 @@ func main() {
 	gob.Register(types.User{})
 
 	// Create a cookie store for session management
-	cookieStore := sessions.NewCookieStore([]byte("NkEODK8pOq"))
+	cookieStore := sessions.NewCookieStore([]byte(cookieStoreKey))
 	cookieStore.Options.HttpOnly = true
-	cookieStore.Options.Secure = true
 	cookieStore.Options.SameSite = http.SameSiteStrictMode
 	cookieStore.Options.MaxAge = 604800
 
@@ -98,7 +88,7 @@ func main() {
 	router.Use(static.Serve("/", static.LocalFile("./public", false)))
 
 	// Start the HTTP server on port 8080
-	if err := router.RunTLS(":8080", "C:/SSL/localhost.crt", "C:/SSL/localhost_unencrypted.key"); err != nil {
-		log.Fatal("Error starting HTTPS server:", err)
+	if err := router.Run(":8080"); err != nil {
+		log.Fatal("Error starting HTTP server:", err)
 	}
 }
