@@ -1,106 +1,150 @@
 body, html {
-    height: 100%;
-    margin: 0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
-    color: white;
-    background: linear-gradient(135deg, #3a4d7d, #6e7b94);
-    font-family: 'Arial', sans-serif;
-    text-align: center;
+  height: 100%;
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(-45deg, #6a9bbd, #345f7c, #1f3653);
+  background-size: 400% 400%;
+  animation: gradientMove 15s ease infinite;
+  color: white;
+  text-align: center;
+}
+
+@keyframes gradientMove {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+#content-container {
+  width: 90%;
+  max-width: 700px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center; /* Aligns items vertically in the center */
+  padding: 50px 35px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(15px);
+  transition: box-shadow 0.3s ease;
+}
+
+#content-container:hover {
+  box-shadow: 0 8px 60px rgba(0, 0, 0, 0.35);
+}
+
+#heading {
+  font-size: 3rem;
+  font-weight: 600;
+  color: #f0f4f8;
+  margin-bottom: 10px;
+}
+
+#subheading {
+  font-size: 1.5rem;
+  font-weight: 400;
+  color: #d1e0e8;
+  margin-top: 10px;
+}
+
+#divider {
+  height: 4px;
+  width: 60px;
+  background-color: #ffffff;
+  margin: 20px auto;
+  border-radius: 3px;
+}
+
+#image {
+  width: 100%;
+  max-width: 320px;
+  height: auto;
+  border-radius: 15px;
+  margin-bottom: 30px;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+#image:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 30px rgba(0, 0, 0, 0.25);
+}
+
+#btn-container {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+}
+
+#btn-login {
+  font-size: 1rem;
+  padding: 12px 25px;
+  border-radius: 30px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  transition: all 0.3s ease;
+  background: linear-gradient(45deg, #1e88e5, #1565c0);
+  border: none;
+  color: white;
+  box-shadow: 0 4px 15px rgba(30, 136, 229, 0.3);
+}
+
+#btn-login:hover {
+  background: linear-gradient(45deg, #1565c0, #1e88e5);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(21, 101, 192, 0.5);
+}
+
+#btn-signup {
+  font-size: 1rem;
+  padding: 12px 25px;
+  border-radius: 30px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  transition: all 0.3s ease;
+  background-color: #1e88e5;
+  color: white;
+  border: none;
+  box-shadow: 0 4px 15px rgba(30, 136, 229, 0.3);
+}
+
+#btn-signup:hover {
+  background-color: #1565c0;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(21, 101, 192, 0.5);
+}
+
+a {
+  text-decoration: none;
+}
+
+@media (max-width: 768px) {
+  #heading {
+      font-size: 2.5rem;
   }
 
-  .content-container {
-    padding: 20px;
-    width: 100%;
-    max-width: 600px;
-    margin-top: 5vh;
+  #subheading {
+      font-size: 1.2rem;
   }
 
   #image {
-    width: 100%;
-    max-width: 300px;
-    height: auto;
-    object-fit: cover;
-    border-radius: 50%;
-    margin-bottom: 20px;
-    transition: transform 0.3s ease;
+      max-width: 280px;
+  }
+}
+
+@media (max-width: 576px) {
+  #heading {
+      font-size: 2rem;
   }
 
-  #image:hover {
-    transform: scale(1.05); /* Slight zoom effect on hover */
-  }
-
-  .btn-container {
-    margin-top: 20px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 10px;
-  }
-
-  #anchor {
-    color: #DFFFFF !important;
-    font-size: 18px;
-    transition: color 0.3s;
-    text-decoration: none;
-  }
-
-  #anchor:hover {
-    color: #F1FFFF !important;
-    text-decoration: underline;
-  }
-
-  @media (max-width: 768px) {
-    #image {
-      width: 250px;
-      height: 250px;
-    }
-
-    h1 {
-      font-size: 6vw;
-    }
-
-    h2 {
-      font-size: 3.5vw;
-    }
-  }
-
-  @media (max-width: 576px) {
-    #image {
-      width: 200px;
-      height: 200px;
-    }
-
-    h1 {
-      font-size: 5vw;
-    }
-
-    h2 {
-      font-size: 3vw;
-    }
-
-    .btn-container {
-      gap: 8px;
-    }
-  }
-
-  @media (max-width: 400px) {
-    h1 {
-      font-size: 1.5rem;
-    }
-
-    h2 {
+  #subheading {
       font-size: 1rem;
-    }
-
-    #image {
-      width: 180px;
-      height: 180px;
-    }
-
-    .content-container {
-      padding: 15px;
-    }
   }
+
+  #image {
+      max-width: 220px;
+  }
+}

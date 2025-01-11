@@ -7,14 +7,16 @@ const postsContainer = document.getElementById("posts-wrapper");
 const showMoreButton = document.getElementById("show-more");
 
 // Add a click event listener to the "Older Posts" button
-showMoreButton.addEventListener("click", function () {
-    currentPage += 1; // Increment the page number
-    loadPosts(currentPage);
-});
+if (showMoreButton){
+    showMoreButton.addEventListener("click", function () {
+        currentPage += 1; // Increment the page number
+        loadPosts(currentPage);
+    });
+}
 
 // Function to load posts for the given user and page
 function loadPosts(page) {
-    fetch(`/${username}/posts?page=${page}`, {
+    fetch(`/profile/${username}/?page=${page}`, {
         method: 'GET',
         headers: {
             'X-Requested-With': 'XMLHttpRequest'

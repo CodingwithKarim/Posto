@@ -97,7 +97,7 @@ func GetHomePageHandler(context *gin.Context) {
 
 	if isLoggedIn {
 		// If the user is logged in, redirect them to their profile page
-		context.Redirect(http.StatusFound, "/"+user.Username)
+		context.Redirect(http.StatusFound, "/profile/"+user.Username)
 	} else {
 		// If the user is not logged in, render the default homepage
 		context.HTML(http.StatusOK, utils.ROOT_PAGE, nil)

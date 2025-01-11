@@ -18,6 +18,18 @@ import (
 )
 
 func main() {
+	// Open or create the log file
+	logFile, err := os.OpenFile("/home/ec2-user/logs/posto.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
+
+	if err != nil {
+		log.Fatal("Error opening log file:", err)
+	}
+
+	defer logFile.Close() // Ensure the log file is closed when done
+
+	// Set the log output to the log file
+	log.SetOutput(logFile)
+
 	// Get required system environment variables
 	mysqlUser := os.Getenv("MYSQL_USER")
 	mysqlPassword := os.Getenv("MYSQL_PASSWORD")
@@ -40,10 +52,8 @@ func main() {
 	// Create a router to map incoming requests to handler functions
 	router := gin.Default()
 
-	// Construct the connection string for MySQL
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:3306)/%s", mysqlUser, mysqlPassword, mysqlHost, mysqlDB)
-
-	database, err := sql.Open("mysql", dsn)
+	// Connect to database through formatted connection string
+	database, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:3306)/%s", mysqlUser, mysqlPassword, mysqlHost, mysqlDB))
 	if err != nil {
 		log.Fatal("Error opening database connection:", err)
 	}
@@ -61,7 +71,7 @@ func main() {
 	cookieStore := sessions.NewCookieStore([]byte(cookieStoreKey))
 	cookieStore.Options.HttpOnly = true
 	cookieStore.Options.SameSite = http.SameSiteStrictMode
-	cookieStore.Options.Domain = "postoblog.duckdns.org" // Updated to HTTPS domain
+	cookieStore.Options.Domain = "postoblog.duckdns.org"
 	cookieStore.Options.MaxAge = 604800
 	cookieStore.Options.Secure = true
 
@@ -71,21 +81,29 @@ func main() {
 	// Create app struct for accessing session & database
 	app := &types.App{SessionStore: cookieStore, Database: database}
 
-	// Configure routes with associated handlers
+	// Middleware for blocking suspicious IPs
+	router.Use(api.BlockSuspiciousIPsAndRateLimit)
+
+	// Public Routes (No authentication required)
 	router.GET("/", api.OptionalAuth(app), api.GetHomePageHandler)
-	router.GET("/:username", api.OptionalAuth(app), api.GetUserBlogPostsHandler(app.Database))
-	router.GET("/:username/posts", api.OptionalAuth(app), api.GetUserBlogPostsHandler(app.Database))
-	router.GET("/edit/:ID", api.RequireAuth(app), api.GetCreateOrEditPostPageHandler(app))
+	router.GET("/profile/:username", api.OptionalAuth(app), api.GetUserBlogPostsHandler(app.Database))
 	router.GET("/blogpost/:ID", api.OptionalAuth(app), api.GetBlogPostPageHandler(app))
-	router.POST("/createpost", api.RequireAuth(app), api.CreatePostHandler(app))
-	router.POST("/edit/:ID", api.RequireAuth(app), api.UpdatePostHandler(app))
 	router.GET("/login", api.GetLoginPageHandler)
 	router.GET("/signup", api.GetSignupPageHandler)
-	router.GET("/createpost", api.RequireAuth(app), api.GetCreateOrEditPostPageHandler(app))
 	router.POST("/login", api.PostLoginHandler(app))
 	router.POST("/signup", api.PostSignupHandler(app.Database))
-	router.POST("/delete/:ID", api.RequireAuth(app), api.DeletePostHandler(app))
-	router.POST("/logout", api.RequireAuth(app), api.PostLogoutHandler(app))
+
+	// Authenticated Routes (Require authentication)
+	authRoutes := router.Group("/")
+	authRoutes.Use(api.RequireAuth(app))
+	{
+		authRoutes.GET("/edit/:ID", api.GetCreateOrEditPostPageHandler(app))
+		authRoutes.POST("/createpost", api.CreatePostHandler(app))
+		authRoutes.POST("/edit/:ID", api.UpdatePostHandler(app))
+		authRoutes.GET("/createpost", api.GetCreateOrEditPostPageHandler(app))
+		authRoutes.POST("/delete/:ID", api.DeletePostHandler(app))
+		authRoutes.POST("/logout", api.PostLogoutHandler(app))
+	}
 
 	// Configure public folder to be accessed from root directory
 	router.Use(static.Serve("/", static.LocalFile("./public", false)))
