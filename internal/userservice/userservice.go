@@ -111,6 +111,8 @@ func SaveUserSession(context *gin.Context, app *types.App, user types.User) erro
 		return fmt.Errorf("failed to save session data: %w", err)
 	}
 
+	log.Println(session.Values[utils.USER])
+
 	return nil
 }
 

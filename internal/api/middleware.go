@@ -28,6 +28,7 @@ func OptionalAuth(app *types.App) gin.HandlerFunc {
 	return func(context *gin.Context) {
 		// Attempt to authenticate user
 		user, isValidUser := authenticateUser(app, context)
+		log.Println("In optional auth, isvalid user is", isValidUser)
 		if isValidUser {
 			// Store user in context if authenticated
 			context.Set(utils.USER, user)
@@ -49,11 +50,13 @@ func authenticateUser(app *types.App, context *gin.Context) (types.User, bool) {
 	// Extract user from session
 	user, ok := session.Values[utils.USER].(types.User)
 	if !ok || !userservice.IsValidUser(user) {
+		log.Println("Not a valid user", user.ID, user.Username)
 		return types.User{}, false
 	}
 
 	// Validate user in the database
 	if !userservice.CheckUserExists(user, app.Database) {
+		log.Println("User doesnt exist", user.Username, user.ID)
 		return types.User{}, false
 	}
 

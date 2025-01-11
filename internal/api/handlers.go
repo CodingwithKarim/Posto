@@ -34,12 +34,14 @@ func PostLoginHandler(app *types.App) gin.HandlerFunc {
 		user, err := userservice.VerifyUserCredentials(username, password, app.Database)
 
 		if err != nil {
+			log.Println(err.Error())
 			utils.SendErrorResponse(context, http.StatusUnauthorized, err.Error())
 			return
 		}
 
 		// Retrieve session data from the request
 		if err := userservice.SaveUserSession(context, app, user); err != nil {
+			log.Println(err.Error())
 			utils.SendErrorResponse(context, http.StatusInternalServerError, err.Error())
 			return
 		}

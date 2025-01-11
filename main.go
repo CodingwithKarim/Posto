@@ -60,6 +60,7 @@ func main() {
 	cookieStore := sessions.NewCookieStore([]byte(cookieStoreKey))
 	cookieStore.Options.HttpOnly = true
 	cookieStore.Options.SameSite = http.SameSiteStrictMode
+	cookieStore.Options.Domain = "http://postoblog.duckdns.org"
 	cookieStore.Options.MaxAge = 604800
 
 	// Load HTML templates
