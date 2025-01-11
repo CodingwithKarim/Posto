@@ -7,41 +7,43 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/gin-contrib/static"
-
-	"github.com/gin-gonic/gin"
-
-	"database/sql"
-
-	_ "github.com/go-sql-driver/mysql"
-
 	"App/internal/api"
 	"App/internal/types"
+	"database/sql"
 
+	"github.com/gin-contrib/static"
+	"github.com/gin-gonic/gin"
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/sessions"
 )
 
 func main() {
-	// Create a router to map incoming requests to handler functions
-	router := gin.Default()
-
 	// Get required system environment variables
 	mysqlUser := os.Getenv("MYSQL_USER")
 	mysqlPassword := os.Getenv("MYSQL_PASSWORD")
 	mysqlHost := os.Getenv("MYSQL_HOST")
 	mysqlDB := os.Getenv("MYSQL_DB")
 	cookieStoreKey := os.Getenv("COOKIE_STORE_KEY")
+	certFile := os.Getenv("CERT_FILE_PATH")
+	keyFile := os.Getenv("KEY_FILE_PATH")
 
 	// Ensure all necessary environment variables are present
 	if mysqlUser == "" || mysqlPassword == "" || mysqlHost == "" || mysqlDB == "" || cookieStoreKey == "" {
 		log.Fatal("Required environment variables are missing.")
 	}
 
+	// Ensure the SSL certificate and key files are present
+	if certFile == "" || keyFile == "" {
+		log.Fatal("SSL certificate or key file paths are missing.")
+	}
+
+	// Create a router to map incoming requests to handler functions
+	router := gin.Default()
+
 	// Construct the connection string for MySQL
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:3306)/%s", mysqlUser, mysqlPassword, mysqlHost, mysqlDB)
 
 	database, err := sql.Open("mysql", dsn)
-
 	if err != nil {
 		log.Fatal("Error opening database connection:", err)
 	}
@@ -50,7 +52,6 @@ func main() {
 	if err := database.Ping(); err != nil {
 		log.Fatal("Error pinging the database:", err)
 	}
-
 	defer database.Close()
 
 	// Register the User type for encoding/decoding
@@ -60,8 +61,9 @@ func main() {
 	cookieStore := sessions.NewCookieStore([]byte(cookieStoreKey))
 	cookieStore.Options.HttpOnly = true
 	cookieStore.Options.SameSite = http.SameSiteStrictMode
-	cookieStore.Options.Domain = "http://postoblog.duckdns.org"
+	cookieStore.Options.Domain = "postoblog.duckdns.org" // Updated to HTTPS domain
 	cookieStore.Options.MaxAge = 604800
+	cookieStore.Options.Secure = true
 
 	// Load HTML templates
 	router.LoadHTMLGlob("./internal/templates/*.html")
@@ -88,8 +90,8 @@ func main() {
 	// Configure public folder to be accessed from root directory
 	router.Use(static.Serve("/", static.LocalFile("./public", false)))
 
-	// Start the HTTP server on port 8080
-	if err := router.Run(":80"); err != nil {
-		log.Fatal("Error starting HTTP server:", err)
+	// Start the HTTPS server on port 443 using SSL certificates
+	if err := router.RunTLS(":443", certFile, keyFile); err != nil {
+		log.Fatal("Error starting HTTPS server:", err)
 	}
 }
