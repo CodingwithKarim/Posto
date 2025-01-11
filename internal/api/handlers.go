@@ -47,7 +47,7 @@ func PostLoginHandler(app *types.App) gin.HandlerFunc {
 		}
 
 		// Redirect to the user's profile page after successful login
-		context.Redirect(http.StatusFound, "/"+user.Username)
+		context.Redirect(http.StatusFound, "/profile/"+user.Username)
 	}
 }
 
@@ -170,7 +170,7 @@ func CreatePostHandler(app *types.App) gin.HandlerFunc {
 		}
 
 		// Redirect to the user's page after creating the post
-		context.Redirect(http.StatusFound, "/"+user.Username)
+		context.Redirect(http.StatusFound, "/profile/"+user.Username)
 	}
 }
 
@@ -193,7 +193,7 @@ func DeletePostHandler(app *types.App) gin.HandlerFunc {
 		}
 
 		// Redirect to the user's page after successful deletion
-		context.Redirect(http.StatusFound, "/"+user.Username)
+		context.Redirect(http.StatusFound, "/profile/"+user.Username)
 	}
 }
 

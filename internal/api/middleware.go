@@ -19,6 +19,7 @@ func RequireAuth(app *types.App) gin.HandlerFunc {
 	return func(context *gin.Context) {
 		// Authenticate user
 		user, isValidUser := authenticateUser(app, context)
+
 		if !isValidUser {
 			userservice.HandleAuthenticationError(context)
 			return
