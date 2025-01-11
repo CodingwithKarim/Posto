@@ -88,7 +88,7 @@ func main() {
 	router.Use(static.Serve("/", static.LocalFile("./public", false)))
 
 	// Start the HTTP server on port 8080
-	if err := router.Run(":8080"); err != nil {
+	if err := router.Run(":80"); err != nil {
 		log.Fatal("Error starting HTTP server:", err)
 	}
 }
