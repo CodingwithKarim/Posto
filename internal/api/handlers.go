@@ -246,6 +246,7 @@ func UpdatePostHandler(app *types.App) gin.HandlerFunc {
 		// Validate form values
 		if err := blogservice.ValidatePostInputs(title, isPublic, message); err != nil {
 			utils.SendErrorResponse(context, http.StatusBadRequest, err.Error())
+			return
 		}
 
 		// Validate Post ID from context
@@ -267,6 +268,7 @@ func UpdatePostHandler(app *types.App) gin.HandlerFunc {
 			ID:     id,
 		}); err != nil {
 			utils.SendErrorResponse(context, http.StatusInternalServerError, err.Error())
+			return
 		}
 
 		// Redirect to the updated post page
