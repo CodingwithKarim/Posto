@@ -16,11 +16,12 @@ func CapitalizeFirstLetter(s string) string {
 	if len(s) == 0 {
 		return s
 	}
+
 	return strings.ToUpper(string(s[0])) + s[1:]
 }
 
 func SendErrorResponse(context *gin.Context, statusCode int, errorMessage string) {
-	context.HTML(statusCode, "error.html", types.ErrorPageData{
+	context.HTML(statusCode, ERROR_PAGE, types.ErrorPageData{
 		StatusCode:   statusCode,
 		ErrorMessage: errorMessage,
 	})

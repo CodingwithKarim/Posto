@@ -49,3 +49,7 @@ const (
 const (
 	COOKIE_SESSION = "cookieSession"
 )
+
+const (
+	INVALID_REQUEST_MESSAGE = "Oops! The page you're looking for doesn't exist."
+)
