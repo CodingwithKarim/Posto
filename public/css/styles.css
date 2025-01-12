@@ -11195,6 +11195,10 @@ article {
   color: lightskyblue;
 }
 
+#app-title {
+  font-family: 'Playfair Display', serif;
+}
+
 /* Responsive adjustments for small screens */
 @media (max-width: 767px) {
   #post-content p {

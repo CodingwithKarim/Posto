@@ -1,7 +1,5 @@
 package utils
 
-import "time"
-
 const (
 	AUTH_MIN_LENGTH = 3
 	AUTH_MAX_LENGTH = 40
@@ -20,7 +18,7 @@ const (
 )
 
 const (
-	EXPIRATION_TIME = 24 * time.Hour // Constant duration to block an IP (e.g., 24 hours)
+	EXPIRATION_TIME = 24
 )
 
 const (

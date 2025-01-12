@@ -75,24 +75,26 @@ func BlockSuspiciousIPsAndRateLimit(c *gin.Context) {
 	// Grab client IP
 	ip := c.ClientIP()
 
-	// Check if the IP is blocked indefinitely
+	// Check if the IP is currently blocked
 	if blockTime, blocked := blockedIPs[ip]; blocked {
 		// Check if the block has expired
 		if time.Now().Before(blockTime) {
-			// Block is still valid
+			// Block the IP from further processing
 			c.JSON(403, gin.H{"error": "Access denied. Your IP is blocked."})
 			c.Abort()
 			return
 		} else {
-			// Block has expired, remove from the block list
+			// If Block expired remove out of blocked list
 			delete(blockedIPs, ip)
 		}
 	}
 
 	// Retrieve or create a limiter for this IP
 	lim, exists := ipLimiters[ip]
+
+	// If a limiter doesn't exist create one and set to Client IP
 	if !exists {
-		// Create a new limiter set for a minute
+		// Create a new limiter set for a minute for designated number of requests
 		lim = tollbooth.NewLimiter(utils.REQUEST_LIMIT, &limiter.ExpirableOptions{
 			DefaultExpirationTTL: time.Minute,
 		})
@@ -103,11 +105,11 @@ func BlockSuspiciousIPsAndRateLimit(c *gin.Context) {
 
 	// Check rate limit for this IP
 	if httpError := tollbooth.LimitByRequest(lim, c.Writer, c.Request); httpError != nil {
-		// Log and block the IP indefinitely on rate limit exceed
+		// Log and block the IP if rate limit exceeded
 		log.Printf("Suspicious activity detected from IP: %s (rate limit exceeded)", ip)
 
-		// Add to in-memory block list with expiration time (e.g., 24 hours from now)
-		blockedIPs[ip] = time.Now().Add(utils.EXPIRATION_TIME)
+		// Add to in-memory block list with expiration time
+		blockedIPs[ip] = time.Now().Add(utils.EXPIRATION_TIME * time.Hour)
 
 		c.JSON(httpError.StatusCode, gin.H{"error": "Access denied. Rate limit exceeded."})
 		c.Abort()

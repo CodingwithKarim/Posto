@@ -76,8 +76,10 @@ func main() {
 	// Middleware for blocking suspicious IPs
 	router.Use(api.BlockSuspiciousIPsAndRateLimit)
 
-	// Public Routes (No authentication required)
+	// Invalid Routes
 	router.NoRoute(api.GetNotFoundHandler)
+
+	// Public Routes (No authentication required)
 	router.GET("/", api.OptionalAuth(app), api.GetHomePageHandler)
 	router.GET("/profile/:username", api.OptionalAuth(app), api.GetUserBlogPostsHandler(app.Database))
 	router.GET("/blogpost/:ID", api.OptionalAuth(app), api.GetBlogPostPageHandler(app))
