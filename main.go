@@ -15,45 +15,35 @@ import (
 	"github.com/gin-gonic/gin"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/sessions"
+	"github.com/joho/godotenv"
 )
 
-func main() {
-	// Open or create the log file
-	logFile, err := os.OpenFile("/home/ec2-user/logs/posto.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
-
-	if err != nil {
-		log.Fatal("Error opening log file:", err)
+func init() {
+	// Load .env file in local environment
+	if err := godotenv.Load(); err != nil {
+		log.Fatal(".env file not found")
 	}
+}
 
-	defer logFile.Close() // Ensure the log file is closed when done
-
-	// Set the log output to the log file
-	log.SetOutput(logFile)
-
+func main() {
 	// Get required system environment variables
+	appPort := os.Getenv("APP_PORT")
 	mysqlUser := os.Getenv("MYSQL_USER")
 	mysqlPassword := os.Getenv("MYSQL_PASSWORD")
 	mysqlHost := os.Getenv("MYSQL_HOST")
+	mysqlPort := os.Getenv("MYSQL_PORT")
 	mysqlDB := os.Getenv("MYSQL_DB")
-	cookieStoreKey := os.Getenv("COOKIE_STORE_KEY")
-	certFile := os.Getenv("CERT_FILE_PATH")
-	keyFile := os.Getenv("KEY_FILE_PATH")
+	cookieStoreKey := os.Getenv("SESSION_SECRET")
 
 	// Ensure all necessary environment variables are present
-	if mysqlUser == "" || mysqlPassword == "" || mysqlHost == "" || mysqlDB == "" || cookieStoreKey == "" {
+	if mysqlUser == "" || mysqlPassword == "" || mysqlHost == "" || mysqlPort == "" || mysqlDB == "" {
 		log.Fatal("Required environment variables are missing.")
 	}
 
-	// Ensure the SSL certificate and key files are present
-	if certFile == "" || keyFile == "" {
-		log.Fatal("SSL certificate or key file paths are missing.")
-	}
+	// Construct the connection string for MySQL
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", mysqlUser, mysqlPassword, mysqlHost, mysqlPort, mysqlDB)
+	database, err := sql.Open("mysql", dsn)
 
-	// Create a router to map incoming requests to handler functions
-	router := gin.Default()
-
-	// Connect to database through formatted connection string
-	database, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:3306)/%s", mysqlUser, mysqlPassword, mysqlHost, mysqlDB))
 	if err != nil {
 		log.Fatal("Error opening database connection:", err)
 	}
@@ -64,16 +54,18 @@ func main() {
 	}
 	defer database.Close()
 
+	// Create a router to map incoming requests to handler functions
+	router := gin.Default()
+
 	// Register the User type for encoding/decoding
 	gob.Register(types.User{})
 
 	// Create a cookie store for session management
 	cookieStore := sessions.NewCookieStore([]byte(cookieStoreKey))
 	cookieStore.Options.HttpOnly = true
-	cookieStore.Options.SameSite = http.SameSiteStrictMode
-	cookieStore.Options.Domain = "postoblog.duckdns.org"
-	cookieStore.Options.MaxAge = 604800
 	cookieStore.Options.Secure = true
+	cookieStore.Options.SameSite = http.SameSiteStrictMode
+	cookieStore.Options.MaxAge = 604800
 
 	// Load HTML templates
 	router.LoadHTMLGlob("./internal/templates/*.html")
@@ -108,8 +100,8 @@ func main() {
 	// Configure public folder to be accessed from root directory
 	router.Use(static.Serve("/", static.LocalFile("./public", false)))
 
-	// Start the HTTPS server on port 443 using SSL certificates
-	if err := router.RunTLS(":443", certFile, keyFile); err != nil {
+	// Start the HTTP server on port 8080
+	if err := router.RunTLS(appPort, "C:/SSL/localhost.crt", "C:/SSL/localhost_unencrypted.key"); err != nil {
 		log.Fatal("Error starting HTTPS server:", err)
 	}
 }
