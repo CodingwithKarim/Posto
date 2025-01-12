@@ -1,21 +1,5 @@
 package types
 
-import (
-	"database/sql"
-
-	"github.com/gorilla/sessions"
-)
-
-type App struct {
-	SessionStore *sessions.CookieStore
-	Database     *sql.DB
-}
-
-type User struct {
-	Username string
-	ID       int
-}
-
 type BlogPageData struct {
 	Username   string
 	Posts      []BlogPostData
@@ -41,11 +25,6 @@ type BlogPostFormData struct {
 	IsEditing bool
 	PostID    int
 	BlogPostBase
-}
-
-type ErrorPageData struct {
-	StatusCode   int
-	ErrorMessage string
 }
 
 type BlogPostBase struct {

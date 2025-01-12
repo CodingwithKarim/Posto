@@ -45,3 +45,7 @@ const (
 	SIGNUP_PAGE       = "signup.html"
 	USER_PROFILE_PAGE = "userprofile.html"
 )
+
+const (
+	COOKIE_SESSION = "cookieSession"
+)

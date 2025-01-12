@@ -4,6 +4,7 @@ import (
 	"App/internal/types"
 	"App/internal/userservice"
 	"App/internal/utils"
+	"fmt"
 	"log"
 	"time"
 
@@ -13,31 +14,32 @@ import (
 )
 
 var blockedIPs = make(map[string]time.Time)        // In-memory blocklist
-var ipLimiters = make(map[string]*limiter.Limiter) // Store rate limiters per IP
+var ipLimiters = make(map[string]*limiter.Limiter) // rate limiter store per IP
 
 func RequireAuth(app *types.App) gin.HandlerFunc {
 	return func(context *gin.Context) {
-		// Authenticate user
-		user, isValidUser := authenticateUser(app, context)
+		// Attempt to authenticate user
+		user, err := authenticateUser(app, context)
 
-		if !isValidUser {
-			userservice.HandleAuthenticationError(context)
+		// Handle error if accessing protected resource
+		if err != nil {
+			userservice.HandleAuthenticationError(context, err)
 			return
 		}
 
-		// Store authenticated user in context
+		// Store user in context to be retrieved for future handlers
 		context.Set(utils.USER, user)
-		context.Next() // Proceed to the next handler
+
+		// Proceed to next handler if authentication was successful
+		context.Next()
 	}
 }
 
 func OptionalAuth(app *types.App) gin.HandlerFunc {
 	return func(context *gin.Context) {
 		// Attempt to authenticate user
-		user, isValidUser := authenticateUser(app, context)
-		log.Println("In optional auth, isvalid user is", isValidUser)
-		if isValidUser {
-			// Store user in context if authenticated
+		if user, err := authenticateUser(app, context); err == nil {
+			// Store user in context to be retrieved for future handlers
 			context.Set(utils.USER, user)
 		}
 
@@ -93,26 +95,24 @@ func BlockSuspiciousIPsAndRateLimit(c *gin.Context) {
 	c.Next()
 }
 
-func authenticateUser(app *types.App, context *gin.Context) (types.User, bool) {
+func authenticateUser(app *types.App, context *gin.Context) (types.User, error) {
 	// Retrieve session
-	session, err := app.SessionStore.Get(context.Request, "cookieSession")
+	session, err := app.SessionStore.Get(context.Request, utils.COOKIE_SESSION)
 	if err != nil {
-		log.Printf("Error accessing session: %+v", err.Error())
-		return types.User{}, false
+		return types.User{}, fmt.Errorf("error accessing session: %+v", err.Error())
 	}
 
 	// Extract user from session
 	user, ok := session.Values[utils.USER].(types.User)
+
 	if !ok || !userservice.IsValidUser(user) {
-		log.Println("Not a valid user", user.ID, user.Username)
-		return types.User{}, false
+		return types.User{}, fmt.Errorf("error validating user, user id: %d and username: %s", user.ID, user.Username)
 	}
 
 	// Validate user in the database
 	if !userservice.CheckUserExists(user, app.Database) {
-		log.Println("User doesnt exist", user.Username, user.ID)
-		return types.User{}, false
+		return types.User{}, fmt.Errorf("error validating user when checking session stored user")
 	}
 
-	return user, true
+	return user, nil
 }

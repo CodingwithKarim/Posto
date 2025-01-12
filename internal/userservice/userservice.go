@@ -96,7 +96,7 @@ func CheckUserExists(user types.User, database *sql.DB) bool {
 
 func SaveUserSession(context *gin.Context, app *types.App, user types.User) error {
 	// Retrieve session data from the request
-	session, err := app.SessionStore.Get(context.Request, "cookieSession")
+	session, err := app.SessionStore.Get(context.Request, utils.COOKIE_SESSION)
 	if err != nil {
 		log.Printf("Failed to retrieve session data for user: %s, Error: %v", user.Username, err)
 		return fmt.Errorf("failed to retrieve session data: %w", err)
@@ -118,7 +118,7 @@ func SaveUserSession(context *gin.Context, app *types.App, user types.User) erro
 
 func LogoutUserSession(context *gin.Context, store *sessions.CookieStore) error {
 	// Retrieve session data from the store
-	session, err := store.Get(context.Request, "cookieSession")
+	session, err := store.Get(context.Request, utils.COOKIE_SESSION)
 
 	if err != nil {
 		log.Printf("Failed to retrieve session data: %v", err)
@@ -148,7 +148,10 @@ func ValidateAuthInputLength(username, password string) error {
 	return nil
 }
 
-func HandleAuthenticationError(context *gin.Context) {
+func HandleAuthenticationError(context *gin.Context, err error) {
+	// Log error
+	log.Println(err.Error())
+
 	// Redirect the user to the login page
 	context.Redirect(http.StatusFound, "/login")
 
