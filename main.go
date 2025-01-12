@@ -77,6 +77,7 @@ func main() {
 	router.Use(api.BlockSuspiciousIPsAndRateLimit)
 
 	// Public Routes (No authentication required)
+	router.NoRoute(api.GetNotFoundHandler)
 	router.GET("/", api.OptionalAuth(app), api.GetHomePageHandler)
 	router.GET("/profile/:username", api.OptionalAuth(app), api.GetUserBlogPostsHandler(app.Database))
 	router.GET("/blogpost/:ID", api.OptionalAuth(app), api.GetBlogPostPageHandler(app))

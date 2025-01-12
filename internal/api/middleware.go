@@ -48,6 +48,29 @@ func OptionalAuth(app *types.App) gin.HandlerFunc {
 	}
 }
 
+func authenticateUser(app *types.App, context *gin.Context) (types.User, error) {
+	// Retrieve session
+	session, err := app.SessionStore.Get(context.Request, utils.COOKIE_SESSION)
+
+	if err != nil {
+		return types.User{}, fmt.Errorf("error accessing session: %+v", err.Error())
+	}
+
+	// Extract user from session
+	user, ok := session.Values[utils.USER].(types.User)
+
+	if !ok || !userservice.IsValidUser(user) {
+		return types.User{}, fmt.Errorf("error validating user, user id: %d and username: %s", user.ID, user.Username)
+	}
+
+	// Validate user in the database
+	if !userservice.CheckUserExists(user, app.Database) {
+		return types.User{}, fmt.Errorf("error validating user when checking session stored user")
+	}
+
+	return user, nil
+}
+
 func BlockSuspiciousIPsAndRateLimit(c *gin.Context) {
 	// Grab client IP
 	ip := c.ClientIP()
@@ -93,26 +116,4 @@ func BlockSuspiciousIPsAndRateLimit(c *gin.Context) {
 
 	// Proceed with the request if within rate limits
 	c.Next()
-}
-
-func authenticateUser(app *types.App, context *gin.Context) (types.User, error) {
-	// Retrieve session
-	session, err := app.SessionStore.Get(context.Request, utils.COOKIE_SESSION)
-	if err != nil {
-		return types.User{}, fmt.Errorf("error accessing session: %+v", err.Error())
-	}
-
-	// Extract user from session
-	user, ok := session.Values[utils.USER].(types.User)
-
-	if !ok || !userservice.IsValidUser(user) {
-		return types.User{}, fmt.Errorf("error validating user, user id: %d and username: %s", user.ID, user.Username)
-	}
-
-	// Validate user in the database
-	if !userservice.CheckUserExists(user, app.Database) {
-		return types.User{}, fmt.Errorf("error validating user when checking session stored user")
-	}
-
-	return user, nil
 }

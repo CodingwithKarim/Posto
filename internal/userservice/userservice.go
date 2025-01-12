@@ -111,8 +111,6 @@ func SaveUserSession(context *gin.Context, app *types.App, user types.User) erro
 		return fmt.Errorf("failed to save session data: %w", err)
 	}
 
-	log.Println(session.Values[utils.USER])
-
 	return nil
 }
 
@@ -127,6 +125,8 @@ func LogoutUserSession(context *gin.Context, store *sessions.CookieStore) error 
 
 	// Expire the session by setting MaxAge to -1
 	session.Options.MaxAge = -1
+
+	// Save session data to ensure persistence
 	if err := session.Save(context.Request, context.Writer); err != nil {
 		log.Printf("Failed to save session data during logout: %v", err)
 		return fmt.Errorf("failed to save session data")
@@ -136,15 +136,17 @@ func LogoutUserSession(context *gin.Context, store *sessions.CookieStore) error 
 }
 
 func ValidateAuthInputLength(username, password string) error {
-	// Validate username and password length
+	// Validate username length
 	if !utils.IsValidInputLength(username, utils.AUTH_MIN_LENGTH, utils.AUTH_MAX_LENGTH) {
 		return fmt.Errorf("username must be between %d and %d characters", utils.AUTH_MIN_LENGTH, utils.AUTH_MAX_LENGTH)
 	}
 
+	// Validate password length
 	if !utils.IsValidInputLength(password, utils.AUTH_MIN_LENGTH, utils.AUTH_MAX_LENGTH) {
 		return fmt.Errorf("password must be between %d and %d characters", utils.AUTH_MIN_LENGTH, utils.AUTH_MAX_LENGTH)
 	}
 
+	// Return nil if username & password length validation passed
 	return nil
 }
 

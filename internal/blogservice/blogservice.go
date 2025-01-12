@@ -6,9 +6,6 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"strconv"
-
-	"github.com/gin-gonic/gin"
 )
 
 func InsertBlogPostIntoDB(db *sql.DB, postData *types.CreateBlogPost) error {
@@ -68,30 +65,27 @@ func DeleteBlogPostFromDB(db *sql.DB, postID int, userID int) error {
 	return nil
 }
 
-func GetBlogPostsByUser(db *sql.DB, username string, isOwner bool, page, limit int) ([]types.BlogPostData, error) {
-	// Check if the user exists
+func GetBlogPostsByUser(db *sql.DB, username string, isOwner bool, page int) ([]types.BlogPostData, error) {
 	var exists bool
 
-	if err := db.QueryRow(utils.UserExistsQuery, username).Scan(&exists); err != nil {
-		return nil, fmt.Errorf("error checking if user exists: %w", err)
-	}
-	if !exists {
-		return nil, fmt.Errorf("user %s does not exist", username)
+	// check if user is present in the database
+	if err := db.QueryRow(utils.UserExistsQuery, username).Scan(&exists); err != nil || !exists {
+		return nil, fmt.Errorf("user %s does not exist or error occurred: %w", username, err)
 	}
 
-	// Calculate pagination offset
+	// Calculate pagination offset based on post limit
+	limit := utils.POST_LIMIT_PER_PAGE
 	offset := (page - 1) * limit
 
-	// SQL query to fetch blog posts
+	// Assign SQL query to fetch blog posts based on ownership
 	var query string
-
 	if !isOwner {
 		query = utils.SelectPublicPostsByUsernameQuery
 	} else {
 		query = utils.SelectAllPostsByUsernameQuery
 	}
 
-	// Execute the query
+	// Execute the query to retrieve blog posts from user
 	rows, err := db.Query(query, username, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("error querying posts for user %s: %w", username, err)
@@ -102,21 +96,22 @@ func GetBlogPostsByUser(db *sql.DB, username string, isOwner bool, page, limit i
 	var posts []types.BlogPostData
 	for rows.Next() {
 		var post types.BlogPostData
-		var createdAt []byte // Use []byte for the CreatedAt field, instead of sql.NullTime
+		var createdAt []byte
 
 		// Scan the row into the post struct
 		if err := rows.Scan(&post.ID, &post.Title, &post.Content, &createdAt, &post.IsPublic); err != nil {
 			return nil, fmt.Errorf("error scanning post for user %s: %w", username, err)
 		}
 
-		// Limit content length to 100 characters
+		// Limit content length to 100 characters and add dots
 		if len(post.Content) > 100 {
 			post.Content = post.Content[:100] + utils.DOTS_STRING
 		}
 
-		// Format the creation date
+		// Format the creation date for the UI
 		post.CreatedAt = FormatDate(createdAt)
 
+		// Add posts to array of posts
 		posts = append(posts, post)
 	}
 
@@ -124,6 +119,7 @@ func GetBlogPostsByUser(db *sql.DB, username string, isOwner bool, page, limit i
 		return nil, fmt.Errorf("error iterating posts for user %s: %w", username, err)
 	}
 
+	// Return arr of posts & null if successful
 	return posts, nil
 }
 
@@ -132,7 +128,7 @@ func GetBlogPostData(db *sql.DB, postID int, userID int, isLoggedIn bool) (types
 	var createdAt []byte
 	var postUserID int
 
-	// Execute the query and populate the page data
+	// Execute the query to retrieve blog post by ID
 	if err := db.QueryRow(utils.SelectPostDetailsQuery, postID, userID).Scan(
 		&pageData.Post.ID, &pageData.Post.Title, &pageData.Post.Content,
 		&createdAt, &pageData.Post.IsPublic, &postUserID, &pageData.Username,
@@ -152,6 +148,7 @@ func GetBlogPostData(db *sql.DB, postID int, userID int, isLoggedIn bool) (types
 }
 
 func GetPostDataOnEdit(db *sql.DB, formData *types.BlogPostFormData, postID, userID int) error {
+	// Execute SQL query to retrieve existing post data for edit page
 	if err := db.QueryRow(utils.SelectEditPostQuery, postID, userID).Scan(&formData.Title, &formData.Content, &formData.IsPublic); err != nil {
 		if err == sql.ErrNoRows {
 			return fmt.Errorf("post not found or unauthorized")
@@ -159,69 +156,5 @@ func GetPostDataOnEdit(db *sql.DB, formData *types.BlogPostFormData, postID, use
 
 		return fmt.Errorf("database error occurred while accessing the post")
 	}
-	return nil
-}
-
-func GetPostIDAndMode(context *gin.Context) (int, bool, error) {
-	paramPostID := context.Param(utils.ID)
-
-	// If no ID is provided, return default values
-	if paramPostID == "" {
-		return 0, false, nil
-	}
-
-	// Validate postID if provided
-	if id, isValidID := IsValidPostID(paramPostID); isValidID {
-		return id, true, nil
-	}
-
-	return 0, false, fmt.Errorf("invalid post ID")
-}
-
-func GetPageQuery(ctx *gin.Context) int {
-	const maxPage = utils.BLOG_POST_PAGE_MAX // Maximum allowable page number
-
-	// Parse the query parameter and default to 1 if invalid
-	page, err := strconv.Atoi(ctx.DefaultQuery(utils.PAGE, utils.DEFAULT_PAGE))
-
-	// Ensure the page is within the valid range
-	if err != nil || page < 1 || page > maxPage {
-		if page > maxPage {
-			return maxPage
-		}
-		return 1
-	}
-
-	return page
-}
-
-func ValidatePostIDInput(context *gin.Context) (int, error) {
-	id, isValidID := IsValidPostID(context.Param(utils.ID))
-
-	if !isValidID {
-		return id, fmt.Errorf("invalid post ID")
-	}
-
-	return id, nil
-}
-
-func ValidatePostInputs(title string, isPublic string, content string) error {
-	// Validate public status (isPublic)
-	if !IsValidPriority(isPublic) {
-		return fmt.Errorf("invalid public status: must be 'true' or 'false'")
-	}
-
-	// Validate title length
-	if !utils.IsValidInputLength(title, utils.BLOG_POST_MIN_LENGTH, utils.BLOG_TITLE_MAX_LENGTH) {
-		log.Printf("invalid title length: must be between %d and %d", utils.BLOG_POST_MIN_LENGTH, utils.BLOG_TITLE_MAX_LENGTH)
-		return fmt.Errorf("invalid title length: must be between %d and %d", utils.BLOG_POST_MIN_LENGTH, utils.BLOG_TITLE_MAX_LENGTH)
-	}
-
-	// Validate content length
-	if !utils.IsValidInputLength(content, utils.BLOG_POST_MIN_LENGTH, utils.BLOG_CONTENT_MAX_LENGTH) {
-		return fmt.Errorf("invalid content length: must be between %d and %d", utils.BLOG_POST_MIN_LENGTH, utils.BLOG_CONTENT_MAX_LENGTH)
-	}
-
-	// Return nil if all validations pass
 	return nil
 }

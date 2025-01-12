@@ -86,7 +86,10 @@
 }
 
 #post-container .post-meta{
-  font-family: 'Times New Roman', Times, serif;
+  font-family: 'Montserrat', sans-serif;
+  font-style: italic;
+  font-size: smaller;
+  color: #8A8A8A;
 }
 
 body {
@@ -195,7 +198,7 @@ body {
   }
 
   #post-container .post-actions {
-      gap: 8px;
+      gap: 12px;
   }
 
   #pagination-controls {
@@ -10921,7 +10924,7 @@ footer {
 
 header.masthead {
   position: relative;
-  margin-bottom: 2.5rem;
+  /* margin-bottom: 2.5rem; */
   padding-top: calc(8rem + 57px);
   padding-bottom: 8rem;
   background: no-repeat center center;
@@ -10986,10 +10989,6 @@ header.masthead .post-heading .meta a {
   color: #fff;
 }
 @media (min-width: 992px) {
-  header.masthead {
-    padding-top: 12.5rem;
-    padding-bottom: 12.5rem;
-  }
   header.masthead .page-heading h1, header.masthead .page-heading .h1,
   header.masthead .site-heading h1,
   header.masthead .site-heading .h1 {
@@ -11039,13 +11038,6 @@ header.masthead .post-heading .meta a {
   overflow-wrap: break-word;
 }
 
-/* .post-preview > .post-meta {
-  font-size: 1.125rem;
-  font-style: italic;
-  margin-top: 0;
-  color: #6c757d;
-} */
- 
 .post-preview > .post-meta > a {
   text-decoration: none;
 }

@@ -6,13 +6,28 @@ import (
 	"App/internal/userservice"
 	"App/internal/utils"
 	"database/sql"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 )
+
+func GetNotFoundHandler(context *gin.Context) {
+	// If client attempts to access a route that doesn't exist, render an error page
+	utils.SendErrorResponse(context, http.StatusNotFound, utils.INVALID_REQUEST_MESSAGE)
+}
+
+func GetHomePageHandler(context *gin.Context) {
+	// Check if the user is logged in and redirect accordingly
+	if user, isLoggedIn := userservice.IsUserLoggedIn(context); isLoggedIn {
+		context.Redirect(http.StatusFound, "/profile/"+user.Username)
+		return
+	}
+
+	// Render the default homepage if the user is not logged in
+	context.HTML(http.StatusOK, utils.ROOT_PAGE, nil)
+}
 
 func GetLoginPageHandler(context *gin.Context) {
 	// Render the login page template without template data
@@ -34,14 +49,12 @@ func PostLoginHandler(app *types.App) gin.HandlerFunc {
 		user, err := userservice.VerifyUserCredentials(username, password, app.Database)
 
 		if err != nil {
-			log.Println(err.Error())
 			utils.SendErrorResponse(context, http.StatusUnauthorized, err.Error())
 			return
 		}
 
 		// Retrieve session data from the request
 		if err := userservice.SaveUserSession(context, app, user); err != nil {
-			log.Println(err.Error())
 			utils.SendErrorResponse(context, http.StatusInternalServerError, err.Error())
 			return
 		}
@@ -91,31 +104,45 @@ func PostSignupHandler(database *sql.DB) gin.HandlerFunc {
 	}
 }
 
-func GetHomePageHandler(context *gin.Context) {
-	// Check if the user is logged
-	user, isLoggedIn := userservice.IsUserLoggedIn(context)
+func GetUserBlogPostsHandler(db *sql.DB) gin.HandlerFunc {
+	return func(context *gin.Context) {
+		// Retrieve the username from the URL parameter
+		username := strings.ToLower(context.Param(utils.USERNAME))
 
-	if isLoggedIn {
-		// If the user is logged in, redirect them to their profile page
-		context.Redirect(http.StatusFound, "/profile/"+user.Username)
-	} else {
-		// If the user is not logged in, render the default homepage
-		context.HTML(http.StatusOK, utils.ROOT_PAGE, nil)
+		// Check if the user is logged in and if the requested user is the owner of the blog
+		isLoggedIn, isOwner := userservice.GetUserStatus(context, username)
+
+		// Handle pagination to determine which posts to retrieve
+		page := blogservice.GetPageQuery(context)
+
+		// Fetch the blog posts from the database
+		posts, err := blogservice.GetBlogPostsByUser(db, username, isOwner, page)
+
+		if err != nil {
+			utils.SendErrorResponse(context, http.StatusNotFound, err.Error())
+			return
+		}
+
+		// Check if the request is an AJAX request by inspecting the "X-Requested-With" header
+		// If it's an AJAX request, return the posts in JSON format for client-side handling
+		if context.GetHeader("X-Requested-With") == "XMLHttpRequest" {
+			context.JSON(http.StatusOK, posts)
+			return
+		}
+
+		// If not AJAX, We pass the page data to render the HTML page
+		context.HTML(http.StatusOK, utils.USER_PROFILE_PAGE, &types.BlogPageData{
+			Username:   utils.CapitalizeFirstLetter(username),
+			Posts:      posts,
+			IsOwner:    isOwner,
+			IsLoggedIn: isLoggedIn,
+		})
 	}
 }
 
-func UpdatePostHandler(app *types.App) gin.HandlerFunc {
+func GetBlogPostPageHandler(app *types.App) gin.HandlerFunc {
 	return func(context *gin.Context) {
-		// Retrieve form values
-		title := context.PostForm("title")
-		isPublic := context.DefaultPostForm("isPublic", "false")
-		message := context.PostForm("message")
-
-		// Validate form values
-		if err := blogservice.ValidatePostInputs(title, isPublic, message); err != nil {
-			utils.SendErrorResponse(context, http.StatusBadRequest, err.Error())
-		}
-
+		// Validate Post ID from context
 		id, err := blogservice.ValidatePostIDInput(context)
 
 		if err != nil {
@@ -123,20 +150,55 @@ func UpdatePostHandler(app *types.App) gin.HandlerFunc {
 			return
 		}
 
-		if err := blogservice.UpdateBlogPostInDB(app.Database, &types.UpdateBlogPost{
-			BlogPostBase: types.BlogPostBase{
-				Title:    title,
-				Content:  message,
-				IsPublic: blogservice.ConvertIsPublicToBool(isPublic),
-			},
-			UserID: (userservice.GetUserFromContext(context)).ID,
-			ID:     id,
-		}); err != nil {
-			utils.SendErrorResponse(context, http.StatusInternalServerError, err.Error())
+		// Check if the user is logged in
+		user, isLoggedIn := userservice.IsUserLoggedIn(context)
+
+		// Get blog post data from the database
+		pageData, err := blogservice.GetBlogPostData(app.Database, id, user.ID, isLoggedIn)
+
+		if err != nil {
+			utils.SendErrorResponse(context, http.StatusNotFound, err.Error())
+			return
 		}
 
-		// Redirect to the updated post page
-		context.Redirect(http.StatusFound, "/blogpost/"+strconv.Itoa(id))
+		// Render the blog post
+		context.HTML(http.StatusOK, utils.BLOG_POST_PAGE, pageData)
+	}
+}
+
+func GetCreateOrEditPostPageHandler(app *types.App) gin.HandlerFunc {
+	return func(context *gin.Context) {
+		// Get postID and edit mode
+		postID, isEditMode, err := blogservice.GetPostIDAndMode(context)
+
+		if err != nil {
+			utils.SendErrorResponse(context, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		// Get user info from the context (set in middleware)
+		user := userservice.GetUserFromContext(context)
+
+		// Initialize form data with default values
+		formData := &types.BlogPostFormData{
+			Username:  utils.CapitalizeFirstLetter(user.Username),
+			IsEditing: isEditMode,
+			PostID:    postID,
+			BlogPostBase: types.BlogPostBase{
+				IsPublic: true, // Default for new posts
+			},
+		}
+
+		// Populate form data if editing a post
+		if isEditMode {
+			if err := blogservice.GetPostDataOnEdit(app.Database, formData, postID, user.ID); err != nil {
+				utils.SendErrorResponse(context, http.StatusNotFound, err.Error())
+				return
+			}
+		}
+
+		// Render the create or edit post page
+		context.HTML(http.StatusOK, utils.CREATE_POST_PAGE, formData)
 	}
 }
 
@@ -174,6 +236,44 @@ func CreatePostHandler(app *types.App) gin.HandlerFunc {
 	}
 }
 
+func UpdatePostHandler(app *types.App) gin.HandlerFunc {
+	return func(context *gin.Context) {
+		// Retrieve form values
+		title := context.PostForm("title")
+		isPublic := context.DefaultPostForm("isPublic", "false")
+		message := context.PostForm("message")
+
+		// Validate form values
+		if err := blogservice.ValidatePostInputs(title, isPublic, message); err != nil {
+			utils.SendErrorResponse(context, http.StatusBadRequest, err.Error())
+		}
+
+		// Validate Post ID from context
+		id, err := blogservice.ValidatePostIDInput(context)
+
+		if err != nil {
+			utils.SendErrorResponse(context, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		// Update Blog Post Data
+		if err := blogservice.UpdateBlogPostInDB(app.Database, &types.UpdateBlogPost{
+			BlogPostBase: types.BlogPostBase{
+				Title:    title,
+				Content:  message,
+				IsPublic: blogservice.ConvertIsPublicToBool(isPublic),
+			},
+			UserID: (userservice.GetUserFromContext(context)).ID,
+			ID:     id,
+		}); err != nil {
+			utils.SendErrorResponse(context, http.StatusInternalServerError, err.Error())
+		}
+
+		// Redirect to the updated post page
+		context.Redirect(http.StatusFound, "/blogpost/"+strconv.Itoa(id))
+	}
+}
+
 func DeletePostHandler(app *types.App) gin.HandlerFunc {
 	return func(context *gin.Context) {
 		// Get user info from context (set in middleware)
@@ -187,6 +287,7 @@ func DeletePostHandler(app *types.App) gin.HandlerFunc {
 			return
 		}
 
+		// Delete Blog Post
 		if err := blogservice.DeleteBlogPostFromDB(app.Database, id, user.ID); err != nil {
 			utils.SendErrorResponse(context, http.StatusInternalServerError, err.Error())
 			return
@@ -194,104 +295,5 @@ func DeletePostHandler(app *types.App) gin.HandlerFunc {
 
 		// Redirect to the user's page after successful deletion
 		context.Redirect(http.StatusFound, "/profile/"+user.Username)
-	}
-}
-
-func GetUserBlogPostsHandler(db *sql.DB) gin.HandlerFunc {
-	return func(context *gin.Context) {
-		// Retrieve the username from the URL parameter
-		username := strings.ToLower(context.Param(utils.USERNAME))
-
-		// Check if the user is logged in and if the requested user is the owner of the blog
-		isLoggedIn, isOwner := userservice.GetUserStatus(context, username)
-
-		// Handle pagination to determine which posts to retrieve
-		page := blogservice.GetPageQuery(context)
-
-		// Fetch the blog posts from the database
-		posts, err := blogservice.GetBlogPostsByUser(db, username, isOwner, page, utils.POST_LIMIT_PER_PAGE)
-
-		if err != nil {
-			utils.SendErrorResponse(context, http.StatusNotFound, err.Error())
-			return
-		}
-
-		// Check if the request is an AJAX request by inspecting the "X-Requested-With" header
-		// If it's an AJAX request, return the posts in JSON format for client-side handling
-		if context.GetHeader("X-Requested-With") == "XMLHttpRequest" {
-			context.JSON(http.StatusOK, posts)
-			return
-		}
-
-		// If not AJAX, We pass the page data to render the HTML page
-		context.HTML(http.StatusOK, utils.USER_PROFILE_PAGE, &types.BlogPageData{
-			Username:   utils.CapitalizeFirstLetter(username),
-			Posts:      posts,
-			IsOwner:    isOwner,
-			IsLoggedIn: isLoggedIn,
-		})
-	}
-}
-
-func GetBlogPostPageHandler(app *types.App) gin.HandlerFunc {
-	return func(context *gin.Context) {
-		id, err := blogservice.ValidatePostIDInput(context)
-
-		if err != nil {
-			utils.SendErrorResponse(context, http.StatusBadRequest, err.Error())
-			return
-		}
-
-		// Check if the user is logged in
-		user, isLoggedIn := userservice.IsUserLoggedIn(context)
-
-		// Get blog post data from the database
-		pageData, err := blogservice.GetBlogPostData(app.Database, id, user.ID, isLoggedIn)
-
-		if err != nil {
-			utils.SendErrorResponse(context, http.StatusNotFound, err.Error())
-			return
-		}
-
-		// Render the blog post
-		context.HTML(http.StatusOK, utils.BLOG_POST_PAGE, pageData)
-	}
-}
-
-func GetCreateOrEditPostPageHandler(app *types.App) gin.HandlerFunc {
-	return func(context *gin.Context) {
-		// Get postID and edit mode
-		postID, isEditMode, err := blogservice.GetPostIDAndMode(context)
-
-		if err != nil {
-			utils.SendErrorResponse(context, http.StatusBadRequest, err.Error())
-			return
-		}
-
-		// Get user info from the context (set in middleware)
-		user := userservice.GetUserFromContext(context)
-
-		log.Println(user.ID, user.Username)
-
-		// Initialize form data with default values
-		formData := &types.BlogPostFormData{
-			Username:  utils.CapitalizeFirstLetter(user.Username),
-			IsEditing: isEditMode,
-			PostID:    postID,
-			BlogPostBase: types.BlogPostBase{
-				IsPublic: true, // Default for new posts
-			},
-		}
-
-		// Populate form data if editing a post
-		if isEditMode {
-			if err := blogservice.GetPostDataOnEdit(app.Database, formData, postID, user.ID); err != nil {
-				utils.SendErrorResponse(context, http.StatusNotFound, err.Error())
-				return
-			}
-		}
-
-		// Render the create or edit post page
-		context.HTML(http.StatusOK, utils.CREATE_POST_PAGE, formData)
 	}
 }
