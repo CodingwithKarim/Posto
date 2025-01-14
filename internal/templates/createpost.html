@@ -1,56 +1,61 @@
 <!DOCTYPE HTML>
-<html>
+<html lang="en">
 
 <head>
 	<title>{{if .IsEditing}}Edit Blog Post{{else}}Make A Blog Post{{end}}</title>
 	<meta charset="utf-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
 	<link rel="icon" type="image/x-icon" href="/images/favicon.ico" />
-	<link rel="stylesheet" href="/css/main.css" />
-	<noscript>
-		<link rel="stylesheet" href="/css/noscript.css" />
-	</noscript>
+	<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css">
+	<link rel="stylesheet" href="/css/create_post.css"/>
 </head>
 
 <body class="is-preload">
 	<!-- Wrapper -->
 	<div id="wrapper">
-		<!-- Main -->
 		<div id="main">
-			<!-- Form -->
-			<h2>{{if .IsEditing}}Edit Blog Post{{else}}Make A Blog Post{{end}}</h2>
-
+			<h2>{{if .IsEditing}}Edit Blog Post{{else}}Make a Blog Post{{end}}</h2>
 			<form method="post" action="{{if .IsEditing}}/edit/{{.PostID}}{{else}}/createpost{{end}}">
-				<div class="row gtr-uniform">
-					<div class="col-6 col-12-xsmall">
-						<input type="text" name="name" id="demo-name" value="{{.Username}}" placeholder="Name"
-							readonly required/>
-					</div>
-					<div class="col-6 col-12-xsmall">
-						<input type="text" name="title" id="demo-email" value="{{if .IsEditing}}{{.Title}}{{end}}"
-							placeholder="Blog Title" required />
-					</div>
-					<div class="col-4 col-12-small">
+				<!-- Name -->
+				<div class="form-group">
+					<label for="demo-name">Username</label>
+					<input type="text" name="name" id="demo-name" value="{{.Username}}" placeholder="Name" disabled
+						required />
+				</div>
+
+				<!-- Blog Title -->
+				<div class="form-group">
+					<label for="demo-email">Blog Title</label>
+					<input type="text" name="title" id="demo-email" value="{{if .IsEditing}}{{.Title}}{{end}}"
+						placeholder="Blog Title" required />
+				</div>
+
+				<!-- Visibility (Public/Private) -->
+				<div class="form-group radio-group">
+					<div>
 						<input type="radio" id="demo-priority-low" name="isPublic" value="true" {{if
 							.IsPublic}}checked{{end}} required>
-						<label for="demo-priority-low">Public</label>
+						<label for="demo-priority-low">Public Post</label>
 					</div>
-					<div class="col-4 col-12-small">
+					<div>
 						<input type="radio" id="demo-priority-normal" value="false" name="isPublic" {{if not
 							.IsPublic}}checked{{end}} required>
-						<label for="demo-priority-normal">Private</label>
+						<label for="demo-priority-normal">Private Post</label>
 					</div>
-					<div class="col-12">
-						<textarea name="message" id="demo-message" placeholder="Enter Blog Post"
-							rows="6" required>{{.Content}}</textarea>
-					</div>
-					<div class="col-12">
-						<ul class="actions">
-							<li><input type="submit" value="{{if .IsEditing}}Edit Post{{else}}Create Post{{end}}"
-									class="primary" /></li>
-							<li><input type="reset" value="Reset"/></li>
-						</ul>
-					</div>
+				</div>
+
+				<!-- Blog Content -->
+				<div class="form-group">
+					<label for="demo-message">Blog Post</label>
+					<textarea name="message" id="demo-message" placeholder="Enter Blog Post" rows="6"
+						required>{{.Content}}</textarea>
+				</div>
+
+				<!-- Actions -->
+				<div class="actions">
+					<button type="submit" class="primary">{{if .IsEditing}}Edit Post{{else}}Create Post{{end}}</button>
+					<input type="reset" value="Reset" />
 				</div>
 			</form>
 		</div>
