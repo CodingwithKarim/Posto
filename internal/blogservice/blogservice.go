@@ -38,7 +38,7 @@ func UpdateBlogPostInDB(db *sql.DB, postData *types.UpdateBlogPost) error {
 		return fmt.Errorf("database error: unable to confirm blog post update")
 
 	} else if rowsAffected == 0 {
-		log.Printf("No rows affected while updating blog post ID %d. Post data: %+v", postData.ID, postData)
+		log.Printf("No rows affected while updating blog post ID %d.", postData.ID)
 		return fmt.Errorf("blog post update unsuccessful")
 	}
 
