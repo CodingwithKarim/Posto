@@ -106,13 +106,21 @@ func FormatDate(createdAt []byte) string {
 		return ""
 	}
 
-	// Parse the byte slice to a time.Time object
-	time, err := time.Parse("2006-01-02 15:04:05", string(createdAt))
-
+	// Parse the byte slice to a time.Time object in UTC
+	timeUTC, err := time.Parse("2006-01-02 15:04:05", string(createdAt))
 	if err != nil {
-		return "" // return empty string if parsing fails
+		return ""
 	}
 
-	// Return a formatted string based on arg template
-	return time.Format("January 2, 2006 03:04 PM")
+	// Load the America/New_York location for EST/EDT
+	loc, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		return ""
+	}
+
+	// Convert the time to EST
+	timeEST := timeUTC.In(loc)
+
+	// Return a formatted string in EST/EDT
+	return timeEST.Format("January 2, 2006 03:04 PM")
 }
