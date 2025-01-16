@@ -49,9 +49,6 @@ func main() {
 		log.Fatal("SSL certificate or key file paths are missing.")
 	}
 
-	// Create a router to map incoming requests to handler functions
-	router := gin.Default()
-
 	// Connect to database through formatted connection string
 	database, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:3306)/%s", mysqlUser, mysqlPassword, mysqlHost, mysqlDB))
 	if err != nil {
@@ -75,11 +72,22 @@ func main() {
 	cookieStore.Options.MaxAge = 604800
 	cookieStore.Options.Secure = true
 
-	// Load HTML templates
-	router.LoadHTMLGlob("./internal/templates/*.html")
-
 	// Create app struct for accessing session & database
 	app := &types.App{SessionStore: cookieStore, Database: database}
+
+	// Create a router to map incoming requests to handler functions
+	router := gin.Default()
+
+	// no reverse proxy to trust
+	err = router.SetTrustedProxies(nil)
+
+	// If setting the trusted proxies fails, log the error and stop execution of the program.
+	if err != nil {
+		log.Fatalf("Failed to set trusted proxies: %v", err) // Log fatal error if setting trusted proxies fails
+	}
+
+	// Load HTML templates
+	router.LoadHTMLGlob("./internal/templates/*.html")
 
 	// Middleware for blocking suspicious IPs
 	router.Use(api.BlockSuspiciousIPsAndRateLimit)
