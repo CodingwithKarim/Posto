@@ -18,6 +18,9 @@ import (
 )
 
 func main() {
+	// Set Gin to release mode
+	gin.SetMode(gin.ReleaseMode)
+
 	// Open or create the log file
 	logFile, err := os.OpenFile("/home/ec2-user/logs/posto.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
 
@@ -76,7 +79,7 @@ func main() {
 	app := &types.App{SessionStore: cookieStore, Database: database}
 
 	// Create a router to map incoming requests to handler functions
-	router := gin.Default()
+	router := gin.New()
 
 	// no reverse proxy to trust
 	err = router.SetTrustedProxies(nil)
