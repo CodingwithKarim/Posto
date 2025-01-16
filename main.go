@@ -84,7 +84,6 @@ func main() {
 	// no reverse proxy to trust
 	err = router.SetTrustedProxies(nil)
 
-	// If setting the trusted proxies fails, log the error and stop execution of the program.
 	if err != nil {
 		log.Fatalf("Failed to set trusted proxies: %v", err) // Log fatal error if setting trusted proxies fails
 	}
