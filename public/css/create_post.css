@@ -53,7 +53,6 @@ label {
 }
 
 input[type="text"],
-textarea,
 input[type="radio"] {
     padding: 12px;
     font-size: 16px;
@@ -90,11 +89,6 @@ textarea:focus {
     display: flex;
     align-items: center;
     font-size: 16px;
-}
-
-textarea {
-    resize: vertical;
-    min-height: 150px;
 }
 
 .actions {
@@ -178,8 +172,7 @@ input[type="reset"]:active {
 }
 
 body,
-select,
-textarea {
+select {
     font-family: "Merriweather", Georgia, serif;
     font-weight: 300;
     font-size: 1rem;
@@ -371,6 +364,22 @@ textarea {
     /* Ensure scrollbars appear when needed */
     resize: vertical;
     /* Allow vertical resizing */
+
+    font-family: "Merriweather", Georgia, serif;
+    font-weight: 300;
+    font-size: 1.3rem;
+    line-height: 2;
+    scrollbar-width: thin;
+    /* Make the scrollbar thinner */
+    scrollbar-color: #007bff #333;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    width: 100%;
+    box-sizing: border-box;
+    transition: border-color 0.3s ease;
+    resize: vertical;
+    min-height: 150px;
 }
 
 /* For WebKit Browsers (Chrome, Safari, Edge) */
@@ -398,12 +407,4 @@ textarea::-webkit-scrollbar-thumb {
 textarea::-webkit-scrollbar-thumb:hover {
     background: #0056b3;
     /* Darker thumb color on hover */
-}
-
-/* Optional: Styling the scrollbar in Firefox */
-textarea {
-    scrollbar-width: thin;
-    /* Make the scrollbar thinner */
-    scrollbar-color: #007bff #333;
-    /* Thumb and track colors */
 }
