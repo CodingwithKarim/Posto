@@ -57,6 +57,13 @@ func main() {
 	// Create a router to map incoming requests to handler functions
 	router := gin.Default()
 
+	// No reverse proxy to handle for this server
+	err = router.SetTrustedProxies(nil)
+
+	if err != nil {
+		log.Fatalf("Failed to set trusted proxies: %v", err)
+	}
+
 	// Register the User type for encoding/decoding
 	gob.Register(types.User{})
 
