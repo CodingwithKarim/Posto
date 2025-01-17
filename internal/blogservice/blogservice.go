@@ -28,21 +28,15 @@ func InsertBlogPostIntoDB(db *sql.DB, postData *types.CreateBlogPost) error {
 }
 
 func UpdateBlogPostInDB(db *sql.DB, postData *types.UpdateBlogPost) error {
-	// Execute the SQL query
-	if result, err := db.Exec(utils.UpdatePostQuery, postData.Title, postData.Content, postData.IsPublic, postData.ID, postData.UserID); err != nil {
+	// Execute the SQL query to update blog post
+	_, err := db.Exec(utils.UpdatePostQuery, postData.Title, postData.Content, postData.IsPublic, postData.ID, postData.UserID)
+
+	if err != nil {
 		log.Printf("SQL execution error while updating blog post ID %d: %v", postData.ID, err)
 		return fmt.Errorf("database error: failed to update blog post")
-
-	} else if rowsAffected, err := result.RowsAffected(); err != nil {
-		log.Printf("Error retrieving affected rows for blog post update ID %d: %v", postData.ID, err)
-		return fmt.Errorf("database error: unable to confirm blog post update")
-
-	} else if rowsAffected == 0 {
-		log.Printf("No rows affected while updating blog post ID %d.", postData.ID)
-		return fmt.Errorf("blog post update unsuccessful")
 	}
 
-	// Return nil if updating post in DB was successful
+	// Return nil if update in DB was successful
 	return nil
 }
 
