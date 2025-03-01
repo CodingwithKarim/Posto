@@ -14,10 +14,18 @@ type BlogPostData struct {
 }
 
 type BlogPostPageData struct {
-	Post       BlogPostData
-	Username   string
-	IsLoggedIn bool
-	IsOwner    bool
+	Post         BlogPostData
+	Username     string
+	IsLoggedIn   bool
+	IsOwner      bool
+	Comments     []Comment
+	LikesCount   int
+	HasUserLiked bool
+}
+
+type Comment struct {
+	Content   string
+	CreatedAt string
 }
 
 type BlogPostFormData struct {

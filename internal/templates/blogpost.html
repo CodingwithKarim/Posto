@@ -9,7 +9,9 @@
     <title>View Blog Post</title>
     <link rel="icon" type="image/x-icon" href="/images/favicon.ico" />
     <script src="https://use.fontawesome.com/releases/v6.3.0/js/all.js" crossorigin="anonymous"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Lora:400,700,400italic,700italic&family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800&family=Playfair+Display:wght@400;700&family=Merriweather:wght@400;700&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Lora:400,700,400italic,700italic&family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800&family=Playfair+Display:wght@400;700&family=Merriweather:wght@400;700&display=swap"
+        rel="stylesheet">
     <link href="/css/blog.css" rel="stylesheet" />
 </head>
 
@@ -88,6 +90,81 @@
                         </form>
                     </div>
                     {{end}}
+                    <!-- ========== START: Like & Comments Container ========== -->
+                    <div class="mt-4"><!-- Add some top margin to separate from post content -->
+
+                        <!-- LIKE SECTION (No Card) -->
+                        <div class="d-flex align-items-center mb-4">
+                            {{ if .IsLoggedIn }}
+                            <!-- If user is logged in, show a form to toggle likes -->
+                            <form action="/blogpost/{{ .Post.ID }}/like" method="POST" class="me-2">
+                                <button type="submit"
+                                    class="btn btn-outline-danger rounded-pill d-flex align-items-center">
+                                    <i class="{{ if .HasUserLiked }}fas{{ else }}far{{ end }} fa-heart me-2"></i>
+                                    <span>
+                                        {{.LikesCount}}
+                                        {{ if eq .LikesCount 1 }}Like{{ else }}Likes{{ end }}
+                                    </span>
+                                </button>
+                            </form>
+                            {{ else }}
+                            <!-- Otherwise, link to login -->
+                            <a href="/login" class="btn btn-outline-danger rounded-pill d-flex align-items-center me-2">
+                                <i class="far fa-heart me-2"></i>
+                                <span>
+                                    {{.LikesCount}}
+                                    {{ if eq .LikesCount 1 }}Like{{ else }}Likes{{ end }}
+                                </span>
+                            </a>
+                            {{ end }}
+                        </div>
+
+                        <!-- COMMENTS CARD -->
+                        <div class="card mt-4">
+                            <div class="card-header bg-white border-bottom-0">
+                                <h5 class="m-0">Comments</h5>
+                            </div>
+                            <div class="card-body">
+
+                                <!-- Existing Comments -->
+                                {{ if .Comments }}
+                                {{ range .Comments }}
+                                <div class="mb-3 pb-3 border-bottom">
+                                    <!-- Header with username and date -->
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <a href="/profile/{{$.Username}}" class="fw-bold text-decoration-none">
+                                            {{$.Username}}
+                                        </a>
+                                        <small class="text-muted">{{.CreatedAt}}</small>
+                                    </div>
+                                    <!-- Comment text -->
+                                    <p class="mt-2 mb-0">{{.Content}}</p>
+                                </div>
+                                {{ end }}
+                                {{ else }}
+                                <p class="text-muted">No comments yet. Be the first to comment!</p>
+                                {{ end }}
+
+                                <!-- Add Comment Form (if logged in) -->
+                                {{ if .IsLoggedIn }}
+                                <hr />
+                                <form action="/blogpost/{{ .Post.ID }}/comment" method="POST">
+                                    <div class="mb-3">
+                                        <label for="comment-content" class="form-label fw-bold">Add a comment</label>
+                                        <textarea class="form-control" id="comment-content" name="content" rows="3"
+                                            placeholder="Share your thoughts..." required></textarea>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">Submit Comment</button>
+                                </form>
+                                {{ else }}
+                                <p class="mt-2"><a href="/login">Log in</a> to comment!</p>
+                                {{ end }}
+                            </div>
+                        </div>
+
+
+                    </div>
+                    <!-- ========== END: Like & Comments Container ========== -->
                 </div>
             </div>
         </div>
