@@ -148,6 +148,9 @@ func GetBlogPostData(db *sql.DB, postID int, userID int, isLoggedIn bool) (types
 	pageData.Comments = append(pageData.Comments, types.Comment{
 		Content:   "Wow what a sweet post this is great stuff man",
 		CreatedAt: "January 1st 2025",
+	}, types.Comment{
+		Content:   "Woo thats intetesting",
+		CreatedAt: "January 2nd 2025",
 	})
 
 	return pageData, nil
