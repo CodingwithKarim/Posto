@@ -20,8 +20,8 @@ import (
 
 func init() {
 	// Load .env file in local environment
-	if err := godotenv.Load("/postoenv/.env"); err != nil {
-		log.Fatal(".env file not found")
+	if err := godotenv.Load("/env/posto.env"); err != nil {
+		log.Fatal("posto.env file not found")
 	}
 }
 
@@ -105,13 +105,15 @@ func main() {
 		authRoutes.GET("/createpost", api.GetCreateOrEditPostPageHandler(app))
 		authRoutes.POST("/delete/:ID", api.DeletePostHandler(app))
 		authRoutes.POST("/logout", api.PostLogoutHandler(app))
+		authRoutes.POST("/blogpost/:ID/comment", api.PostCommentHandler(app))
+		authRoutes.POST("/blogpost/:ID/like", api.PostLikeHandler(app))
 	}
 
 	// Configure public folder to be accessed from root directory
 	router.Use(static.Serve("/", static.LocalFile("./public", false)))
 
 	// Start the HTTP server on port 8080
-	if err := router.RunTLS(appPort, "C:/SSL/localhost.crt", "C:/SSL/localhost_unencrypted.key"); err != nil {
-		log.Fatal("Error starting HTTPS server:", err)
+	if err := router.Run(appPort); err != nil {
+		log.Fatal("Error starting HTTP server:", err)
 	}
 }

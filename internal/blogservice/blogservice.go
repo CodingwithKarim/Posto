@@ -123,8 +123,8 @@ func GetBlogPostsByUser(db *sql.DB, username string, isOwner bool, page int) ([]
 	return posts, nil
 }
 
-func GetBlogPostData(db *sql.DB, postID int, userID int, isLoggedIn bool) (types.BlogPostPageData, error) {
-	var pageData types.BlogPostPageData
+func GetBlogPostData(db *sql.DB, postID int, userID int, isLoggedIn bool) (*types.BlogPostPageData, error) {
+	var pageData = &types.BlogPostPageData{}
 	var createdAt []byte
 	var postUserID int
 
@@ -133,7 +133,7 @@ func GetBlogPostData(db *sql.DB, postID int, userID int, isLoggedIn bool) (types
 		&pageData.Post.ID, &pageData.Post.Title, &pageData.Post.Content,
 		&createdAt, &pageData.Post.IsPublic, &postUserID, &pageData.Username,
 	); err != nil {
-		return pageData, fmt.Errorf("post not found or access denied")
+		return nil, fmt.Errorf("post not found or access denied")
 	}
 
 	// Format the username & created date
@@ -143,15 +143,46 @@ func GetBlogPostData(db *sql.DB, postID int, userID int, isLoggedIn bool) (types
 	// Determine ownership and login status
 	pageData.IsOwner = isLoggedIn && userID == postUserID
 	pageData.IsLoggedIn = isLoggedIn
-	pageData.LikesCount = 0
-	pageData.HasUserLiked = false
-	pageData.Comments = append(pageData.Comments, types.Comment{
-		Content:   "Wow what a sweet post this is great stuff man",
-		CreatedAt: "January 1st 2025",
-	}, types.Comment{
-		Content:   "Woo thats intetesting",
-		CreatedAt: "January 2nd 2025",
-	})
+
+	likesCount, err := GetLikesCount(db, postID)
+
+	if err != nil {
+		log.Printf("Error fetching likes count for post %d: %v", postID, err)
+		return nil, err
+	}
+
+	pageData.LikesCount = likesCount
+
+	if isLoggedIn {
+		hasLiked, err := HasUserLikedPost(db, postID, userID)
+
+		if err != nil {
+			log.Printf("Error checking if user %d has liked post %d: %v", userID, postID, err)
+			return nil, fmt.Errorf("database error: failed to check like status")
+		}
+
+		pageData.HasUserLiked = hasLiked
+	}
+
+	if pageData.LikesCount > 0 {
+		likedUsers, err := GetUsersWhoLiked(db, postID)
+		if err != nil {
+			log.Printf("Error fetching users who liked post %d: %v", postID, err)
+			return nil, fmt.Errorf("database error: failed to retrieve users who liked")
+		} else {
+			pageData.LikedUsers = likedUsers
+		}
+	}
+
+	// Get comments for the blog post if any
+	comments, err := GetCommentsForBlogPost(db, postID)
+
+	if err != nil {
+		log.Printf("Error fetching comments for post %d: %v", postID, err)
+		return nil, fmt.Errorf("database error: failed to retrieve comments")
+	}
+
+	pageData.Comments = comments
 
 	return pageData, nil
 }
@@ -166,4 +197,158 @@ func GetPostDataOnEdit(db *sql.DB, formData *types.BlogPostFormData, postID, use
 		return fmt.Errorf("database error occurred while accessing the post")
 	}
 	return nil
+}
+
+func InsertCommentIntoDB(db *sql.DB, commentData *types.CreateComment) error {
+	// Execute the SQL query to insert a comment
+	if result, err := db.Exec(utils.InsertCommentQuery, commentData.PostID, commentData.UserID, commentData.Comment); err != nil {
+		log.Printf("SQL execution error while inserting comment: %v", err)
+		return fmt.Errorf("database error: failed to insert comment")
+
+	} else if rowsAffected, err := result.RowsAffected(); err != nil {
+		log.Printf("Error retrieving affected rows for comment insertion: %v", err)
+		return fmt.Errorf("database error: unable to confirm comment creation")
+
+	} else if rowsAffected == 0 {
+		log.Printf("No rows affected while inserting comment. Comment data: %+v", commentData)
+		return fmt.Errorf("comment creation unsuccessful")
+	}
+
+	// Return nil if inserting comment into DB was successful
+	return nil
+}
+
+func GetCommentsForBlogPost(db *sql.DB, postID int) ([]types.Comment, error) {
+	// Query to get comments for a post, joined with user table to get usernames
+	rows, err := db.Query(utils.SelectCommentsForPostQuery, postID)
+	if err != nil {
+		return nil, fmt.Errorf("error querying comments for post %d: %w", postID, err)
+	}
+	defer rows.Close()
+
+	// Collect the results
+	var comments []types.Comment
+	for rows.Next() {
+		var comment types.Comment
+		var createdAt []byte
+		var username string
+
+		// Scan the row into the comment struct
+		if err := rows.Scan(&comment.ID, &comment.Content, &createdAt, &username); err != nil {
+			return nil, fmt.Errorf("error scanning comment for post %d: %w", postID, err)
+		}
+
+		// Format the creation date
+		comment.CreatedAt = FormatDate(createdAt)
+		comment.Username = utils.CapitalizeFirstLetter(username)
+
+		// Add comment to array of comments
+		comments = append(comments, comment)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating comments for post %d: %w", postID, err)
+	}
+
+	return comments, nil
+}
+
+func ToggleLikeOnPost(db *sql.DB, postID int, userID int) (bool, error) {
+	// Check if the user has already liked the post
+	var exists bool
+	err := db.QueryRow(utils.CheckUserLikedQuery, userID, postID).Scan(&exists)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			exists = false
+		} else {
+			log.Printf("Error checking if user %d has liked post %d: %v", userID, postID, err)
+			return false, fmt.Errorf("database error: failed to check like status: %w", err)
+		}
+	}
+
+	var result sql.Result
+
+	if !exists {
+		// If not liked, add a like
+		result, err = db.Exec(utils.InsertLikeQuery, userID, postID)
+		if err != nil {
+			log.Printf("Error adding like for post %d by user %d: %v", postID, userID, err)
+			return false, fmt.Errorf("database error: failed to add like: %w", err)
+		}
+	} else {
+		// If already liked, remove the like
+		result, err = db.Exec(utils.DeleteLikeQuery, userID, postID)
+		if err != nil {
+			log.Printf("Error removing like for post %d by user %d: %v", postID, userID, err)
+			return false, fmt.Errorf("database error: failed to remove like: %w", err)
+		}
+	}
+
+	// Validate that the operation affected rows
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		log.Printf("Error retrieving affected rows for like operation on post %d by user %d: %v", postID, userID, err)
+		return false, fmt.Errorf("database error: unable to confirm like operation: %w", err)
+	}
+	if rowsAffected == 0 {
+		log.Printf("No rows affected during like operation for post %d by user %d", postID, userID)
+		return false, fmt.Errorf("like operation unsuccessful")
+	}
+
+	return !exists, nil
+}
+
+func GetLikesCount(db *sql.DB, postID int) (int, error) {
+	var count int
+
+	if err := db.QueryRow(utils.CountLikesQuery, postID).Scan(&count); err != nil {
+		return 0, fmt.Errorf("error counting likes: %w", err)
+	}
+
+	return count, nil
+}
+
+func HasUserLikedPost(db *sql.DB, postID, userID int) (bool, error) {
+	var exists bool
+
+	if err := db.QueryRow(utils.CheckUserLikedQuery, postID, userID).Scan(&exists); err != nil {
+		return false, fmt.Errorf("error checking like status: %w", err)
+	}
+
+	return exists, nil
+}
+
+// GetUsersWhoLiked retrieves a list of users who liked a post
+func GetUsersWhoLiked(db *sql.DB, postID int) ([]types.LikeUser, error) {
+	query := `
+		SELECT u.Username 
+		FROM Likes l
+		JOIN Users u ON l.UserID = u.ID
+		WHERE l.PostID = ?
+		ORDER BY u.Username ASC
+	`
+
+	rows, err := db.Query(query, postID)
+	if err != nil {
+		return nil, fmt.Errorf("error querying users who liked: %w", err)
+	}
+	defer rows.Close()
+
+	var users []types.LikeUser
+	for rows.Next() {
+		var username string
+		if err := rows.Scan(&username); err != nil {
+			return nil, fmt.Errorf("error scanning username: %w", err)
+		}
+
+		users = append(users, types.LikeUser{
+			Username: utils.CapitalizeFirstLetter(username),
+		})
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating through users: %w", err)
+	}
+
+	return users, nil
 }

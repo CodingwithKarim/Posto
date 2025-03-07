@@ -21,11 +21,20 @@ type BlogPostPageData struct {
 	Comments     []Comment
 	LikesCount   int
 	HasUserLiked bool
+	LikedUsers   []LikeUser
+}
+
+type CreateComment struct {
+	PostID  int    `json:"postId"`
+	UserID  int    `json:"userId"`
+	Comment string `json:"comment"`
 }
 
 type Comment struct {
-	Content   string
-	CreatedAt string
+	ID        int    `json:"id"`
+	Content   string `json:"content"`
+	CreatedAt string `json:"createdAt"`
+	Username  string `json:"username"`
 }
 
 type BlogPostFormData struct {
@@ -50,4 +59,8 @@ type UpdateBlogPost struct {
 	BlogPostBase
 	UserID int
 	ID     int
+}
+
+type LikeUser struct {
+	Username string `json:"username"`
 }

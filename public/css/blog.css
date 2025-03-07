@@ -11037,8 +11037,8 @@ header.masthead .post-heading .meta a {
 }
 
 .post-heading .meta a:hover {
-  color: #0056b3; /* Darker blue on hover */
-  text-decoration: none; /* Remove underline on hover if you prefer */
+  color: #0056b3;
+  text-decoration: none;
 }
 
 @media (min-width: 992px) {
@@ -11050,13 +11050,10 @@ header.masthead .post-heading .meta a {
 #post-actions-post {
   display: flex;
   justify-content: flex-end;
-  /* Align buttons to the right */
   gap: 8px;
-  /* Space between buttons */
   margin-top: 15px;
 }
 
-/* Styling for buttons inside #post-actions */
 #post-actions-post .edit-link,
 #post-actions-post .delete-button {
   display: inline-flex;
@@ -11065,61 +11062,43 @@ header.masthead .post-heading .meta a {
   padding: 6px 10px;
   font-size: 14px;
   border-radius: 50px;
-  /* Rounded edges for a sleeker look */
   cursor: pointer;
   transition: background-color 0.3s, color 0.3s, transform 0.2s;
   border: 1px solid transparent;
-  /* Border for button, transparent by default */
 }
 
-/* Edit button styles within #post-actions */
 #post-actions-post .edit-link {
   background-color: #4CAF50;
-  /* Green for editing */
   color: white;
 }
 
 #post-actions-post .edit-link:hover {
   background-color: #45a049;
-  /* Darker green on hover */
   transform: scale(1.05);
-  /* Slight zoom on hover */
   border: 1px solid #388e3c;
-  /* Darker green border */
 }
 
-/* Delete button styles within #post-actions */
 #post-actions-post .delete-button {
   background-color: #f44336;
-  /* Red for deleting */
   color: white;
 }
 
 #post-actions-post .delete-button:hover {
   background-color: #e53935;
-  /* Darker red on hover */
   transform: scale(1.05);
-  /* Slight zoom on hover */
   border: 1px solid #c62828;
-  /* Darker red border */
 }
 
-/* Icon styles inside the buttons */
 #post-actions-post .fas.fa-edit,
 #post-actions-post .fas.fa-trash-alt {
   font-size: 16px;
-  /* Smaller icon size */
   margin-right: 5px;
-  /* Space between icon and text */
   transition: transform 0.2s;
-  /* Smooth transition for icon size */
 }
 
-/* Optional: Add focus styles for accessibility */
 #post-actions-post .edit-link:focus,
 #post-actions-post .delete-button:focus {
   outline: 2px solid #ffeb3b;
-  /* Yellow outline for focus */
 }
 
 #post-content {
@@ -11138,19 +11117,13 @@ header.masthead .post-heading .meta a {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   transition: all 0.3s ease;
   word-wrap: break-word;
-  /* Ensure long words wrap */
   overflow-wrap: break-word;
-  /* For better compatibility across browsers */
   hyphens: auto;
-  /* Optional: Automatically hyphenate long words if supported */
   white-space: pre-wrap;
-  /* Ensure text wraps */
 }
 
-/* Optional: Focus styles for accessibility */
 #post-content p:focus {
   outline: 2px solid #ffeb3b;
-  /* Yellow outline for focus visibility */
   outline-offset: 2px;
 }
 
@@ -11160,15 +11133,13 @@ header.masthead .post-heading .meta a {
   font-family: 'Open Sans', sans-serif;
 }
 
-/* Keep article content with white background */
 article {
-  /* White background for the content area */
   border-radius: 10px;
 }
 
 #post-title-post {
   text-align: center;
-  font-size: 2.5rem; /* Default size for large screens */
+  font-size: 2.5rem;
   margin-bottom: 10px;
   word-wrap: break-word;
   font-family: 'Playfair Display', serif;
@@ -11188,20 +11159,64 @@ article {
   font-family: 'Playfair Display', serif;
 }
 
-/* Responsive adjustments for small screens */
 @media (max-width: 767px) {
   #post-content p {
       font-size: 1rem;
-      /* Adjust font size for smaller screens */
       padding: 15px 20px;
-      /* Reduced padding on smaller screens */
   }
   #post-title-post {
       font-size: 1.8rem;
-      /* Reduce size on smaller screens */
   }
 
   #meta {
-      font-size: 1rem; /* Smaller meta size on mobile */
+      font-size: 1rem;
   }
+}
+
+.comments-section {
+  border: none;
+}
+
+.comments-section .card {
+  border: none;
+  border-radius: 8px;
+}
+
+.comments-section .card-header {
+  border-bottom: 1px solid #eee;
+}
+
+.comments-section .card-header h5 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.comments-section .card-body {
+  background-color: #fff;
+  border-radius: 0 0 8px 8px;
+  padding: 1.5rem;
+  font-size: 0.85rem;
+}
+
+.comments-section .card-body>div {
+  transition: background-color 0.2s ease-in-out;
+}
+
+.comments-section .card-body>div:hover {
+  background-color: #f9f9f9;
+}
+
+.comments-section label {
+  font-weight: 600;
+}
+
+.comments-section .form-control {
+  border-radius: 6px;
+  resize: vertical;
+}
+
+.comments-section button[type="submit"] {
+  padding: 0.3rem 0.6rem;
+  font-size: 0.9rem;
+  border-radius: 4px;
 }

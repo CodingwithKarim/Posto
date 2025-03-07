@@ -6,6 +6,7 @@ import (
 	"App/internal/userservice"
 	"App/internal/utils"
 	"database/sql"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -297,5 +298,60 @@ func DeletePostHandler(app *types.App) gin.HandlerFunc {
 
 		// Redirect to the user's page after successful deletion
 		context.Redirect(http.StatusFound, "/profile/"+user.Username)
+	}
+}
+
+func PostCommentHandler(app *types.App) gin.HandlerFunc {
+	return func(context *gin.Context) {
+		postID, err := blogservice.ValidatePostIDInput(context)
+
+		if err != nil {
+			utils.SendErrorResponse(context, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		comment := context.PostForm("content")
+
+		if err := blogservice.IsValidComment(comment); err != nil {
+			utils.SendErrorResponse(context, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		user := userservice.GetUserFromContext(context)
+
+		if err := blogservice.InsertCommentIntoDB(app.Database, &types.CreateComment{
+			PostID:  postID,
+			UserID:  user.ID,
+			Comment: comment,
+		}); err != nil {
+			utils.SendErrorResponse(context, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		context.Redirect(http.StatusFound, "/blogpost/"+strconv.Itoa(postID))
+	}
+}
+
+func PostLikeHandler(app *types.App) gin.HandlerFunc {
+	return func(context *gin.Context) {
+		log.Println("Inside PostLikeHandler")
+		postID, err := blogservice.ValidatePostIDInput(context)
+
+		if err != nil {
+			utils.SendErrorResponse(context, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		user := userservice.GetUserFromContext(context)
+
+		liked, err := blogservice.ToggleLikeOnPost(app.Database, postID, user.ID)
+
+		if err != nil {
+			log.Println("Error in PostLikeHandler: ", err)
+			utils.SendErrorResponse(context, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		context.JSON(http.StatusOK, gin.H{"liked": liked})
 	}
 }

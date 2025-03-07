@@ -8,7 +8,6 @@ import (
 )
 
 func IsValidInputLength(inputString string, min, max int) bool {
-	// Check if user info is between 3 and 40 characters long
 	return len(inputString) >= min && len(inputString) <= max
 }
 

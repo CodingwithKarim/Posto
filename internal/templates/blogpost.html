@@ -13,62 +13,6 @@
         href="https://fonts.googleapis.com/css2?family=Lora:400,700,400italic,700italic&family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800&family=Playfair+Display:wght@400;700&family=Merriweather:wght@400;700&display=swap"
         rel="stylesheet">
     <link href="/css/blog.css" rel="stylesheet" />
-    <style>
-        .comments-section {
-            border: none;
-            /* We rely on shadow and rounded corners for styling */
-        }
-
-        .comments-section .card {
-            border: none;
-            border-radius: 8px;
-            /* Smooth corners */
-        }
-
-        .comments-section .card-header {
-            border-bottom: 1px solid #eee;
-        }
-
-        .comments-section .card-header h5 {
-            margin: 0;
-            font-size: 1.1rem;
-        }
-
-        .comments-section .card-body {
-            background-color: #fff;
-            border-radius: 0 0 8px 8px;
-            /* match the top corners */
-            padding: 1.5rem;
-            font-size: 0.85rem;
-            /* some comfortable padding */
-        }
-
-        /* Each comment block */
-        .comments-section .card-body>div {
-            transition: background-color 0.2s ease-in-out;
-        }
-
-        .comments-section .card-body>div:hover {
-            background-color: #f9f9f9;
-        }
-
-        /* Form styling */
-        .comments-section label {
-            font-weight: 600;
-        }
-
-        .comments-section .form-control {
-            border-radius: 6px;
-            resize: vertical;
-            /* allow vertical resizing */
-        }
-
-        .comments-section button[type="submit"] {
-            padding: 0.3rem 0.6rem;
-            font-size: 0.9rem;
-            border-radius: 4px;
-        }
-    </style>
 </head>
 
 <body class="blogpostbody" style="min-height: 100vh;">
@@ -149,88 +93,110 @@
                     <!-- ========== START: Like & Comments Container ========== -->
                     <div class="mt-4"><!-- Add some top margin to separate from post content -->
 
-                        <!-- LIKE SECTION (No Card) -->
-                        <div class="d-flex align-items-center mb-4">
+                        <!-- LIKE SECTION with hover functionality -->
+                        <div class="d-flex align-items-center mb-4"></div>
+                        {{ if .IsLoggedIn }}
+                        <button type="button" class="btn btn-outline-danger rounded-pill d-flex align-items-center"
+                            id="likeButton" data-post-id="{{.Post.ID}}">
+                            <i class="{{ if .HasUserLiked }}fas{{ else }}far{{ end }} fa-heart me-2" id="likeIcon"></i>
+                            <span id="likeCount" data-count="{{.LikesCount}}">
+                                {{.LikesCount}} {{ if eq .LikesCount 1 }}Like{{ else }}Likes{{ end }}
+                            </span>
+                        </button>
+                        {{ else }}
+                        <a href="/login" class="btn btn-outline-danger rounded-pill d-flex align-items-center"
+                            id="likeButton">
+                            <i class="far fa-heart me-2"></i>
+                            <span id="likeCount" data-count="{{.LikesCount}}">
+                                {{.LikesCount}} {{ if eq .LikesCount 1 }}Like{{ else }}Likes{{ end }}
+                            </span>
+                        </a>
+                        {{ end }}
+                    </div>
+
+                    <!-- Modal for displaying users who liked the post -->
+                    {{ if gt .LikesCount 0 }}
+                    <div class="modal fade" id="likesModal" tabindex="-1" aria-labelledby="likesModalLabel"
+                        aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered modal-sm">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="likesModalLabel">
+                                        {{ if eq .LikesCount 1 }}1 person liked this post{{ else }}{{.LikesCount}}
+                                        people liked this post{{ end }}
+                                    </h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                        aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <ul class="list-group list-group-flush">
+                                        {{ range .LikedUsers }}
+                                        <li class="list-group-item">
+                                            <a href="/profile/{{.Username}}" class="text-decoration-none">
+                                                <i class="fas fa-user-circle me-2 text-primary"></i>{{.Username}}
+                                            </a>
+                                        </li>
+                                        {{ end }}
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {{ end }}
+                    <!-- COMMENTS CARD -->
+                    <div class="card mt-4 shadow-sm rounded comments-section">
+                        <!-- Card header -->
+                        <div class="card-header bg-light border-bottom-0">
+                            <h5 class="m-0 fw-bold text-primary">Comments</h5>
+                        </div>
+
+                        <!-- Card body -->
+                        <div class="card-body">
+                            <!-- Existing Comments -->
+                            {{ if .Comments }}
+                            {{ range .Comments }}
+                            <div class="mb-3 pb-3 border-bottom">
+                                <!-- Top row: username & date -->
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <a href="/profile/{{$.Username}}" class="fw-bold text-decoration-none text-dark">
+                                        {{$.Username}}
+                                    </a>
+                                    <small class="text-muted">{{.CreatedAt}}</small>
+                                </div>
+                                <!-- Comment content -->
+                                <p class="mt-2 mb-0">{{.Content}}</p>
+                            </div>
+                            {{ end }}
+                            {{ else }}
+                            <p class="text-muted">No comments yet. Be the first to comment!</p>
+                            {{ end }}
+
+                            <!-- Add Comment Form (if logged in) -->
                             {{ if .IsLoggedIn }}
-                            <!-- If user is logged in, show a form to toggle likes -->
-                            <form action="/blogpost/{{ .Post.ID }}/like" method="POST" class="me-2">
-                                <button type="submit"
-                                    class="btn btn-outline-danger rounded-pill d-flex align-items-center">
-                                    <i class="{{ if .HasUserLiked }}fas{{ else }}far{{ end }} fa-heart me-2"></i>
-                                    <span>
-                                        {{.LikesCount}}
-                                        {{ if eq .LikesCount 1 }}Like{{ else }}Likes{{ end }}
-                                    </span>
-                                </button>
+                            <hr />
+                            <form action="/blogpost/{{ .Post.ID }}/comment" method="POST">
+                                <div class="mb-3">
+                                    <label for="comment-content" class="form-label fw-bold">Add a comment</label>
+                                    <textarea class="form-control" id="comment-content" name="content" rows="3"
+                                        placeholder="Share your thoughts..." required></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-primary">Submit</button>
                             </form>
                             {{ else }}
-                            <!-- Otherwise, link to login -->
-                            <a href="/login" class="btn btn-outline-danger rounded-pill d-flex align-items-center me-2">
-                                <i class="far fa-heart me-2"></i>
-                                <span>
-                                    {{.LikesCount}}
-                                    {{ if eq .LikesCount 1 }}Like{{ else }}Likes{{ end }}
-                                </span>
-                            </a>
+                            <p class="mt-2">
+                                <a href="/login">Log in</a> to comment!
+                            </p>
                             {{ end }}
                         </div>
-
-                        <!-- COMMENTS CARD -->
-                        <!-- COMMENTS CARD -->
-                        <div class="card mt-4 shadow-sm rounded comments-section">
-                            <!-- Card header -->
-                            <div class="card-header bg-light border-bottom-0">
-                                <h5 class="m-0 fw-bold text-primary">Comments</h5>
-                            </div>
-
-                            <!-- Card body -->
-                            <div class="card-body">
-                                <!-- Existing Comments -->
-                                {{ if .Comments }}
-                                {{ range .Comments }}
-                                <div class="mb-3 pb-3 border-bottom">
-                                    <!-- Top row: username & date -->
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <a href="/profile/{{$.Username}}"
-                                            class="fw-bold text-decoration-none text-dark">
-                                            {{$.Username}}
-                                        </a>
-                                        <small class="text-muted">{{.CreatedAt}}</small>
-                                    </div>
-                                    <!-- Comment content -->
-                                    <p class="mt-2 mb-0">{{.Content}}</p>
-                                </div>
-                                {{ end }}
-                                {{ else }}
-                                <p class="text-muted">No comments yet. Be the first to comment!</p>
-                                {{ end }}
-
-                                <!-- Add Comment Form (if logged in) -->
-                                {{ if .IsLoggedIn }}
-                                <hr />
-                                <form action="/blogpost/{{ .Post.ID }}/comment" method="POST">
-                                    <div class="mb-3">
-                                        <label for="comment-content" class="form-label fw-bold">Add a comment</label>
-                                        <textarea class="form-control" id="comment-content" name="content" rows="3"
-                                            placeholder="Share your thoughts..." required></textarea>
-                                    </div>
-                                    <button type="submit" class="btn btn-primary">Submit</button>
-                                </form>
-                                {{ else }}
-                                <p class="mt-2">
-                                    <a href="/login">Log in</a> to comment!
-                                </p>
-                                {{ end }}
-                            </div>
-                        </div>
-
-
-
-
                     </div>
-                    <!-- ========== END: Like & Comments Container ========== -->
+
+
+
+
                 </div>
+                <!-- ========== END: Like & Comments Container ========== -->
             </div>
+        </div>
         </div>
     </article>
     <!-- Footer-->
@@ -242,9 +208,9 @@
             Copyright &copy; Posto
         </div>
     </footer>
-    <!-- Bootstrap core JS-->
-    <script src="/js/logout.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/blogpost.js"></script>
+    <script src="/js/logout.js"></script>
 </body>
 
 </html>
