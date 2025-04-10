@@ -21,7 +21,7 @@ import (
 
 func init() {
 	// Load .env file in local environment
-	if err := godotenv.Load("../env/posto.env"); err != nil {
+	if err := godotenv.Load("posto.env"); err != nil {
 		log.Fatal("posto.env file not found")
 	}
 }
