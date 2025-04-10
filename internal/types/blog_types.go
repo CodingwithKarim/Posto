@@ -1,10 +1,13 @@
 package types
 
 type BlogPageData struct {
-	Username   string
-	Posts      []BlogPostData
-	IsOwner    bool
-	IsLoggedIn bool
+	Username    string
+	Posts       []*BlogPostData
+	IsOwner     bool
+	IsLoggedIn  bool
+	IsFollowing bool
+	Tabs        int
+	CurrentPage int
 }
 
 type BlogPostData struct {
@@ -13,15 +16,19 @@ type BlogPostData struct {
 	CreatedAt string
 }
 
+type HomeFeedData struct {
+	BlogPostData
+	Username string
+}
+
 type BlogPostPageData struct {
-	Post         BlogPostData
+	Post         *BlogPostData
 	Username     string
 	IsLoggedIn   bool
 	IsOwner      bool
-	Comments     []Comment
+	Comments     []*Comment
 	LikesCount   int
 	HasUserLiked bool
-	LikedUsers   []LikeUser
 }
 
 type CreateComment struct {
@@ -61,6 +68,8 @@ type UpdateBlogPost struct {
 	ID     int
 }
 
-type LikeUser struct {
-	Username string `json:"username"`
+type HomeFeedPage struct {
+	Posts       []*HomeFeedData
+	CurrentPage int
+	Tabs        int
 }

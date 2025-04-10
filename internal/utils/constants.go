@@ -49,5 +49,6 @@ const (
 )
 
 const (
-	INVALID_REQUEST_MESSAGE = "Oops! The page you're looking for doesn't exist."
+	INVALID_REQUEST_MESSAGE  = "Oops! The page you're looking for doesn't exist."
+	INVALID_USERNAME_MESSAGE = "Invalid username. Please try again."
 )

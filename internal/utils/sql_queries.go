@@ -19,7 +19,7 @@ const (
 	DeletePostQuery = "DELETE FROM Posts WHERE ID = ? AND UserID = ?"
 
 	SelectPublicPostsByUsernameQuery = `
-		SELECT ID, Title, Content, CreatedAt, IsPublic
+		SELECT ID, Title, Content, CreatedAt, IsPublic, Count(*) OVER() AS total_count
 		FROM Posts
 		WHERE UserID = (SELECT ID FROM Users WHERE Username = ?) 
 		  AND IsPublic = 1
@@ -28,12 +28,23 @@ const (
 	`
 
 	SelectAllPostsByUsernameQuery = `
-		SELECT ID, Title, Content, CreatedAt, IsPublic
+		SELECT ID, Title, Content, CreatedAt, IsPublic, Count(*) OVER() AS total_count
 		FROM Posts
 		WHERE UserID = (SELECT ID FROM Users WHERE Username = ?)
 		ORDER BY CreatedAt DESC 
 		LIMIT ? OFFSET ?
 	`
+
+	SelectAllPostsCountByUsernameQuery = `
+		SELECT COUNT(*)
+		FROM Posts
+		WHERE UserID = (SELECT ID FROM Users WHERE Username = ?)`
+
+	SelectPublicPostsCountByUsernameQuery = `
+		SELECT COUNT(*)
+		FROM Posts
+		WHERE UserID = (SELECT ID FROM Users WHERE Username = ?)
+		  AND IsPublic = 1`
 
 	SelectPostDetailsQuery = `
 		SELECT 
@@ -79,3 +90,43 @@ const (
     )
 	`
 )
+
+const (
+	// Get user ID from username
+	GetUserIDQuery = `
+        SELECT ID FROM Users WHERE Username = ?`
+
+	// Check if a user is already following another user
+	CheckFollowQuery = `
+        SELECT EXISTS (
+            SELECT 1 FROM User_Follows 
+            WHERE follower_id = ? AND following_id = ?
+        )`
+
+	// Insert a new follow relationship
+	InsertFollowQuery = `
+        INSERT INTO User_Follows (follower_id, following_id) 
+        VALUES (?, ?)`
+
+	// Remove an existing follow relationship
+	DeleteFollowQuery = `
+        DELETE FROM User_Follows 
+        WHERE follower_id = ? AND following_id = ?`
+)
+
+const SelectHomeFeedPostsQuery = `
+    SELECT 
+        Posts.ID, 
+        Posts.Title, 
+        Posts.Content, 
+        Posts.CreatedAt, 
+        Posts.IsPublic, 
+        Users.Username AS AuthorUsername,
+		Count(*) OVER() AS total_count
+    FROM Posts
+    JOIN User_Follows ON Posts.UserID = User_Follows.following_id
+    JOIN Users ON Users.ID = Posts.UserID
+    WHERE User_Follows.follower_id = ? 
+      AND Posts.IsPublic = 1
+    ORDER BY Posts.CreatedAt DESC
+    LIMIT ? OFFSET ?`
