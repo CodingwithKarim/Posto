@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/gob"
 	"fmt"
+	"html/template"
 	"log"
 	"net/http"
 	"os"
@@ -20,7 +21,7 @@ import (
 
 func init() {
 	// Load .env file in local environment
-	if err := godotenv.Load("/env/posto.env"); err != nil {
+	if err := godotenv.Load("../env/posto.env"); err != nil {
 		log.Fatal("posto.env file not found")
 	}
 }
@@ -30,18 +31,17 @@ func main() {
 	appPort := os.Getenv("APP_PORT")
 	mysqlUser := os.Getenv("MYSQL_USER")
 	mysqlPassword := os.Getenv("MYSQL_PASSWORD")
-	mysqlHost := os.Getenv("MYSQL_HOST")
-	mysqlPort := os.Getenv("MYSQL_PORT")
+	mysqlSocket := os.Getenv("MYSQL_SOCKET")
 	mysqlDB := os.Getenv("MYSQL_DB")
 	cookieStoreKey := os.Getenv("SESSION_SECRET")
 
 	// Ensure all necessary environment variables are present
-	if mysqlUser == "" || mysqlPassword == "" || mysqlHost == "" || mysqlPort == "" || mysqlDB == "" {
+	if mysqlUser == "" || mysqlPassword == "" || mysqlSocket == "" || mysqlDB == "" || cookieStoreKey == "" {
 		log.Fatal("Required environment variables are missing.")
 	}
 
 	// Construct the connection string for MySQL
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", mysqlUser, mysqlPassword, mysqlHost, mysqlPort, mysqlDB)
+	dsn := fmt.Sprintf("%s:%s@unix(%s)/%s", mysqlUser, mysqlPassword, mysqlSocket, mysqlDB)
 	database, err := sql.Open("mysql", dsn)
 
 	if err != nil {
@@ -72,10 +72,42 @@ func main() {
 	cookieStore.Options.HttpOnly = true
 	cookieStore.Options.Secure = true
 	cookieStore.Options.SameSite = http.SameSiteStrictMode
-	cookieStore.Options.MaxAge = 604800
+	cookieStore.Options.MaxAge = 604800 // 7 days
 
-	// Load HTML templates
-	router.LoadHTMLGlob("./internal/templates/*.html")
+	// This function map allows us to use custom functions in our HTML templates
+	templateFunctions := template.FuncMap{
+		"Iterate": func(start, end int) []int {
+			items := make([]int, end-start+1)
+			for i := range items {
+				items[i] = start + i
+			}
+			return items
+		},
+		"add":      func(a, b int) int { return a + b },
+		"subtract": func(a, b int) int { return a - b },
+		"max": func(a, b int) int {
+			if a > b {
+				return a
+			}
+			return b
+		},
+		"min": func(a, b int) int {
+			if a < b {
+				return a
+			}
+			return b
+		},
+	}
+
+	// Create a custom template with functions
+	tmplate, err := template.New("").Funcs(templateFunctions).ParseGlob("./internal/templates/*.html")
+
+	if err != nil {
+		log.Fatal("Error parsing templates:", err)
+	}
+
+	// Set custom template for Gin
+	router.SetHTMLTemplate(tmplate)
 
 	// Create app struct for accessing session & database
 	app := &types.App{SessionStore: cookieStore, Database: database}
@@ -88,8 +120,8 @@ func main() {
 
 	// Public Routes (No authentication required)
 	router.GET("/", api.OptionalAuth(app), api.GetHomePageHandler)
-	router.GET("/profile/:username", api.OptionalAuth(app), api.GetUserBlogPostsHandler(app.Database))
-	router.GET("/blogpost/:ID", api.OptionalAuth(app), api.GetBlogPostPageHandler(app))
+	router.GET("/profile/:username", api.OptionalAuth(app), api.RenderUserProfilePageHandler(app.Database))
+	router.GET("/blogpost/:ID", api.OptionalAuth(app), api.RenderSingleBlogPostHandler(app))
 	router.GET("/login", api.GetLoginPageHandler)
 	router.GET("/signup", api.GetSignupPageHandler)
 	router.POST("/login", api.PostLoginHandler(app))
@@ -107,6 +139,8 @@ func main() {
 		authRoutes.POST("/logout", api.PostLogoutHandler(app))
 		authRoutes.POST("/blogpost/:ID/comment", api.PostCommentHandler(app))
 		authRoutes.POST("/blogpost/:ID/like", api.PostLikeHandler(app))
+		authRoutes.POST("/follow/:username", api.PostFollowHandler(app))
+		authRoutes.GET("/feed", api.GetHomeFeedHandler(app))
 	}
 
 	// Configure public folder to be accessed from root directory
