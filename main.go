@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/gob"
 	"fmt"
+	"html/template"
 	"log"
 	"net/http"
 	"os"
@@ -81,6 +82,14 @@ func main() {
 	// Create a router to map incoming requests to handler functions
 	router := gin.New()
 
+	// Use Gin's recovery middleware to recover from panics
+	router.Use(gin.Recovery())
+
+	// Use Gin's logger middleware to log requests
+	router.Use(gin.LoggerWithConfig(gin.LoggerConfig{
+		Output: logFile,
+	}))
+
 	// no reverse proxy to trust
 	err = router.SetTrustedProxies(nil)
 
@@ -88,8 +97,40 @@ func main() {
 		log.Fatalf("Failed to set trusted proxies: %v", err) // Log fatal error if setting trusted proxies fails
 	}
 
-	// Load HTML templates
-	router.LoadHTMLGlob("./internal/templates/*.html")
+	// This function map allows us to use custom functions in our HTML templates
+	templateFunctions := template.FuncMap{
+		"Iterate": func(start, end int) []int {
+			items := make([]int, end-start+1)
+			for i := range items {
+				items[i] = start + i
+			}
+			return items
+		},
+		"add":      func(a, b int) int { return a + b },
+		"subtract": func(a, b int) int { return a - b },
+		"max": func(a, b int) int {
+			if a > b {
+				return a
+			}
+			return b
+		},
+		"min": func(a, b int) int {
+			if a < b {
+				return a
+			}
+			return b
+		},
+	}
+
+	// Create a custom template with functions
+	tmplate, err := template.New("").Funcs(templateFunctions).ParseGlob("./internal/templates/*.html")
+
+	if err != nil {
+		log.Fatalf("Error parsing templates: %v", err)
+	}
+
+	// Set custom template for Gin
+	router.SetHTMLTemplate(tmplate)
 
 	// Middleware for blocking suspicious IPs
 	router.Use(api.BlockSuspiciousIPsAndRateLimit)
@@ -99,8 +140,8 @@ func main() {
 
 	// Public Routes (No authentication required)
 	router.GET("/", api.OptionalAuth(app), api.GetHomePageHandler)
-	router.GET("/profile/:username", api.OptionalAuth(app), api.GetUserBlogPostsHandler(app.Database))
-	router.GET("/blogpost/:ID", api.OptionalAuth(app), api.GetBlogPostPageHandler(app))
+	router.GET("/profile/:username", api.OptionalAuth(app), api.RenderUserProfilePageHandler(app.Database))
+	router.GET("/blogpost/:ID", api.OptionalAuth(app), api.RenderSingleBlogPostHandler(app))
 	router.GET("/login", api.GetLoginPageHandler)
 	router.GET("/signup", api.GetSignupPageHandler)
 	router.POST("/login", api.PostLoginHandler(app))
@@ -116,6 +157,10 @@ func main() {
 		authRoutes.GET("/createpost", api.GetCreateOrEditPostPageHandler(app))
 		authRoutes.POST("/delete/:ID", api.DeletePostHandler(app))
 		authRoutes.POST("/logout", api.PostLogoutHandler(app))
+		authRoutes.POST("/blogpost/:ID/comment", api.PostCommentHandler(app))
+		authRoutes.POST("/blogpost/:ID/like", api.PostLikeHandler(app))
+		authRoutes.POST("/follow/:username", api.PostFollowHandler(app))
+		authRoutes.GET("/feed", api.GetHomeFeedHandler(app))
 	}
 
 	// Configure public folder to be accessed from root directory

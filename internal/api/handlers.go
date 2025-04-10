@@ -104,43 +104,50 @@ func PostSignupHandler(database *sql.DB) gin.HandlerFunc {
 	}
 }
 
-func GetUserBlogPostsHandler(db *sql.DB) gin.HandlerFunc {
+func RenderUserProfilePageHandler(db *sql.DB) gin.HandlerFunc {
 	return func(context *gin.Context) {
 		// Retrieve the username from the URL parameter
 		username := strings.ToLower(context.Param(utils.USERNAME))
 
 		// Check if the user is logged in and if the requested user is the owner of the blog
-		isLoggedIn, isOwner := userservice.GetUserStatus(context, username)
+		user, isLoggedIn, isOwner := userservice.GetUserAndStatus(context, username)
 
 		// Handle pagination to determine which posts to retrieve
 		page := blogservice.GetPageQuery(context)
 
 		// Fetch the blog posts from the database
-		posts, err := blogservice.GetBlogPostsByUser(db, username, isOwner, page)
+		posts, totalCount, err := blogservice.GetBlogPostsByUser(db, username, isOwner, page)
 
 		if err != nil {
 			utils.SendErrorResponse(context, http.StatusNotFound, err.Error())
 			return
 		}
 
-		// Check if the request is an AJAX request by inspecting the "X-Requested-With" header
-		// If it's an AJAX request, return the posts in JSON format for client-side handling
-		if context.GetHeader("X-Requested-With") == "XMLHttpRequest" {
-			context.JSON(http.StatusOK, posts)
-			return
+		isFollowing := false
+
+		if isLoggedIn {
+			isFollowing, err = blogservice.IsFollowingUser(db, user.ID, username)
+
+			if err != nil {
+				utils.SendErrorResponse(context, http.StatusInternalServerError, err.Error())
+				return
+			}
 		}
 
 		// If not AJAX, We pass the page data to render the HTML page
 		context.HTML(http.StatusOK, utils.USER_PROFILE_PAGE, &types.BlogPageData{
-			Username:   utils.CapitalizeFirstLetter(username),
-			Posts:      posts,
-			IsOwner:    isOwner,
-			IsLoggedIn: isLoggedIn,
+			Username:    utils.CapitalizeFirstLetter(username),
+			Posts:       posts,
+			IsOwner:     isOwner,
+			IsLoggedIn:  isLoggedIn,
+			IsFollowing: isFollowing,
+			CurrentPage: page,
+			Tabs:        (totalCount + utils.POST_LIMIT_PER_PAGE - 1) / utils.POST_LIMIT_PER_PAGE,
 		})
 	}
 }
 
-func GetBlogPostPageHandler(app *types.App) gin.HandlerFunc {
+func RenderSingleBlogPostHandler(app *types.App) gin.HandlerFunc {
 	return func(context *gin.Context) {
 		// Validate Post ID from context
 		id, err := blogservice.ValidatePostIDInput(context)
@@ -297,5 +304,108 @@ func DeletePostHandler(app *types.App) gin.HandlerFunc {
 
 		// Redirect to the user's page after successful deletion
 		context.Redirect(http.StatusFound, "/profile/"+user.Username)
+	}
+}
+
+func PostCommentHandler(app *types.App) gin.HandlerFunc {
+	return func(context *gin.Context) {
+		postID, err := blogservice.ValidatePostIDInput(context)
+
+		if err != nil {
+			utils.SendErrorResponse(context, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		comment := context.PostForm("content")
+
+		if err := blogservice.IsValidComment(comment); err != nil {
+			utils.SendErrorResponse(context, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		user := userservice.GetUserFromContext(context)
+
+		if err := blogservice.InsertCommentIntoDB(app.Database, &types.CreateComment{
+			PostID:  postID,
+			UserID:  user.ID,
+			Comment: comment,
+		}); err != nil {
+			utils.SendErrorResponse(context, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		context.Redirect(http.StatusFound, "/blogpost/"+strconv.Itoa(postID))
+	}
+}
+
+func PostLikeHandler(app *types.App) gin.HandlerFunc {
+	return func(context *gin.Context) {
+		postID, err := blogservice.ValidatePostIDInput(context)
+
+		if err != nil {
+			utils.SendErrorResponse(context, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		user := userservice.GetUserFromContext(context)
+
+		liked, err := blogservice.ToggleLikeOnPost(app.Database, postID, user.ID)
+
+		if err != nil {
+			utils.SendErrorResponse(context, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		context.JSON(http.StatusOK, gin.H{"liked": liked, "username": utils.CapitalizeFirstLetter(user.Username)})
+	}
+}
+
+func PostFollowHandler(app *types.App) gin.HandlerFunc {
+	return func(context *gin.Context) {
+		// Get the username to follow from the request body
+		username := strings.ToLower(context.Param("username"))
+
+		if username == "" {
+			utils.SendErrorResponse(context, http.StatusBadRequest, utils.INVALID_USERNAME_MESSAGE)
+			return
+		}
+
+		// Get the current user from the context
+		user := userservice.GetUserFromContext(context)
+
+		// Attempt to toggle follow
+		err := blogservice.ToggleFollowUser(app.Database, user.ID, username)
+		if err != nil {
+			utils.SendErrorResponse(context, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		// No response needed, just send 200 OK
+		context.Status(http.StatusOK)
+	}
+}
+
+func GetHomeFeedHandler(app *types.App) gin.HandlerFunc {
+	return func(context *gin.Context) {
+		// Get the current user from the context
+		user := userservice.GetUserFromContext(context)
+
+		// Handle pagination to determine which posts to retrieve
+		page := blogservice.GetPageQuery(context)
+
+		// Get the user's feed
+		posts, totalCount, err := blogservice.GetHomeFeedPosts(app.Database, user.ID, page)
+
+		if err != nil {
+			utils.SendErrorResponse(context, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		// If not AJAX, We pass the page data to render the HTML page
+		context.HTML(http.StatusOK, "feed.html", &types.HomeFeedPage{
+			Posts:       posts,
+			CurrentPage: page,
+			Tabs:        (totalCount + utils.POST_LIMIT_PER_PAGE - 1) / utils.POST_LIMIT_PER_PAGE,
+		})
 	}
 }

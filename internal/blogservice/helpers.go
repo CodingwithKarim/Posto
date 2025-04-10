@@ -101,6 +101,14 @@ func IsValidPostID(postID string) (int, bool) {
 	return id, true
 }
 
+func IsValidComment(comment string) error {
+	if !utils.IsValidInputLength(comment, utils.BLOG_POST_MIN_LENGTH, utils.BLOG_TITLE_MAX_LENGTH) {
+		return fmt.Errorf("invalid comment length: must be between %d and %d", utils.BLOG_POST_MIN_LENGTH, utils.BLOG_TITLE_MAX_LENGTH)
+	}
+
+	return nil
+}
+
 func FormatDate(createdAt []byte) string {
 	if createdAt == nil {
 		return ""

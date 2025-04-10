@@ -20,6 +20,17 @@ func GetUserStatus(context *gin.Context, username string) (bool, bool) {
 	return false, false
 }
 
+func GetUserAndStatus(context *gin.Context, username string) (types.User, bool, bool) {
+	// Check if user is logged in based on context
+	user, isValidUser := IsUserLoggedIn(context)
+
+	// Check if user is the same as the username
+	isOwner := (isValidUser && user.Username == username)
+
+	// Return user and status
+	return user, isValidUser, isOwner
+}
+
 func IsUserLoggedIn(ctx *gin.Context) (types.User, bool) {
 	// Retrieve user from context
 	user := GetUserFromContext(ctx)
