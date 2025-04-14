@@ -1,7 +1,12 @@
 package blogservice
 
 import (
+	"App/internal/cache"
 	"App/internal/utils"
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"log"
 	"strconv"
@@ -131,4 +136,107 @@ func FormatDate(createdAt []byte) string {
 
 	// Return a formatted string in EST/EDT
 	return timeEST.Format("January 2, 2006 03:04 PM")
+}
+
+func EncryptBlogData(data string, userID int, isPublic bool) (string, error) {
+	// If post is public, return content as is
+	if isPublic {
+		return data, nil
+	}
+
+	// Get the user's encryption key
+	key, err := cache.GetUserKey(userID)
+
+	if err != nil {
+		log.Printf("Failed to retrieve user key: %v", err)
+		return "", fmt.Errorf("failed to retrieve user key")
+	}
+
+	// Create a new AES cipher block
+	block, err := aes.NewCipher(key)
+
+	if err != nil {
+		log.Printf("Failed to create AES cipher: %v", err)
+		return "", fmt.Errorf("failed to create AES cipher")
+	}
+
+	// Create a GCM instance
+	gcm, err := cipher.NewGCM(block)
+
+	if err != nil {
+		log.Printf("Failed to create GCM: %v", err)
+		return "", fmt.Errorf("failed to create GCM")
+	}
+
+	// Generate a random nonce
+	nonce := make([]byte, gcm.NonceSize())
+
+	if _, err := rand.Read(nonce); err != nil {
+		log.Printf("Failed to generate nonce: %v", err)
+		return "", fmt.Errorf("failed to generate nonce")
+	}
+
+	// Encrypt the content
+	ciphertext := gcm.Seal(nonce, nonce, []byte(data), nil)
+
+	// Convert the ciphertext to a base64 string
+	return base64.StdEncoding.EncodeToString(ciphertext), nil
+}
+
+func DecryptContent(content string, userID int, isPublic bool) (string, error) {
+	if isPublic {
+		return content, nil
+	}
+
+	// Decode the base64 string back to bytes
+	ciphertext, err := base64.StdEncoding.DecodeString(content)
+
+	if err != nil {
+		log.Printf("Failed to decode base64 content: %v", err)
+		return "", fmt.Errorf("failed to decode encrypted content")
+	}
+
+	// Get the user's encryption key
+	key, err := cache.GetUserKey(userID)
+
+	if err != nil {
+		log.Printf("Failed to retrieve user key: %v", err)
+		return "", fmt.Errorf("failed to retrieve user key")
+	}
+
+	// Create a new AES cipher block
+	block, err := aes.NewCipher(key)
+
+	if err != nil {
+		log.Printf("Failed to create AES cipher: %v", err)
+		return "", fmt.Errorf("failed to create AES cipher")
+	}
+
+	// Create a GCM instance
+	gcm, err := cipher.NewGCM(block)
+
+	if err != nil {
+		log.Printf("Failed to create GCM: %v", err)
+		return "", fmt.Errorf("failed to create GCM")
+	}
+
+	// Extract the nonce from the ciphertext
+	nonceSize := gcm.NonceSize()
+	if len(ciphertext) < nonceSize {
+		log.Printf("Ciphertext too short, expected at least %d bytes", nonceSize)
+		return "", fmt.Errorf("invalid encrypted content")
+	}
+
+	// Split the nonce and the actual ciphertext
+	nonce, ciphertext := ciphertext[:nonceSize], ciphertext[nonceSize:]
+
+	// Decrypt the content
+	plaintext, err := gcm.Open(nil, nonce, ciphertext, nil)
+	if err != nil {
+		log.Printf("Failed to decrypt content: %v", err)
+		return "", fmt.Errorf("failed to decrypt content")
+	}
+
+	// Return the decrypted string
+	return string(plaintext), nil
 }

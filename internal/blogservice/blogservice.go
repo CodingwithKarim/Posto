@@ -9,8 +9,23 @@ import (
 )
 
 func InsertBlogPostIntoDB(db *sql.DB, postData *types.CreateBlogPost) error {
+
+	content, err := EncryptBlogData(postData.Content, postData.UserID, postData.IsPublic)
+
+	if err != nil {
+		log.Printf("Failed to encrypt blog post content: %v", err)
+		return fmt.Errorf("encryption error: failed to encrypt blog post content")
+	}
+
+	title, err := EncryptBlogData(postData.Title, postData.UserID, postData.IsPublic)
+
+	if err != nil {
+		log.Printf("Failed to encrypt blog post title: %v", err)
+		return fmt.Errorf("encryption error: failed to encrypt blog post title")
+	}
+
 	// Execute the SQL query
-	if result, err := db.Exec(utils.InsertPostQuery, postData.Title, postData.Content, postData.UserID, postData.IsPublic); err != nil {
+	if result, err := db.Exec(utils.InsertPostQuery, title, content, postData.UserID, postData.IsPublic); err != nil {
 		log.Printf("SQL execution error while inserting blog post: %v", err)
 		return fmt.Errorf("database error: failed to insert blog post")
 

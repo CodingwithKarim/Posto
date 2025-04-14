@@ -45,22 +45,14 @@ func PostLoginHandler(app *types.App) gin.HandlerFunc {
 			return
 		}
 
-		// Authenticate user credentials
-		user, err := userservice.VerifyUserCredentials(username, password, app.Database)
-
-		if err != nil {
+		// Authenticate user credentials and save session
+		if err := userservice.VerifyUserCredentialsAndSaveSession(username, password, context, app); err != nil {
 			utils.SendErrorResponse(context, http.StatusUnauthorized, err.Error())
 			return
 		}
 
-		// Retrieve session data from the request
-		if err := userservice.SaveUserSession(context, app, user); err != nil {
-			utils.SendErrorResponse(context, http.StatusInternalServerError, err.Error())
-			return
-		}
-
 		// Redirect to the user's profile page after successful login
-		context.Redirect(http.StatusFound, "/profile/"+user.Username)
+		context.Redirect(http.StatusFound, "/profile/"+username)
 	}
 }
 
@@ -82,7 +74,7 @@ func GetSignupPageHandler(context *gin.Context) {
 	context.HTML(http.StatusOK, utils.SIGNUP_PAGE, nil)
 }
 
-func PostSignupHandler(database *sql.DB) gin.HandlerFunc {
+func PostSignupHandler(app *types.App) gin.HandlerFunc {
 	return func(context *gin.Context) {
 		// Extract username and password from the form data
 		username, password := strings.ToLower(context.PostForm("username")), context.PostForm("password")
@@ -94,13 +86,13 @@ func PostSignupHandler(database *sql.DB) gin.HandlerFunc {
 		}
 
 		// Attempt to create a new user in the database
-		if err := userservice.RegisterUser(username, password, database); err != nil {
+		if err := userservice.RegisterUserAndSaveSession(username, password, context, app); err != nil {
 			utils.SendErrorResponse(context, http.StatusInternalServerError, err.Error())
 			return
 		}
 
-		// Redirect to the login page upon successful signup
-		context.Redirect(http.StatusFound, "/login")
+		// Redirect to the user's profile page after successful signup
+		context.Redirect(http.StatusFound, "/profile/"+username)
 	}
 }
 

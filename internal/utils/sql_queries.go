@@ -2,8 +2,8 @@ package utils
 
 const (
 	UserExistsQuery         = "SELECT EXISTS(SELECT 1 FROM Users WHERE Username = ?)"
-	GetUserCredentialsQuery = "SELECT ID, Password FROM Users WHERE Username = ?"
-	InsertUserQuery         = "INSERT INTO Users (Username, Password) VALUES (?, ?)"
+	GetUserCredentialsQuery = "SELECT ID, Password, Encryption_Salt FROM Users WHERE Username = ?"
+	InsertUserQuery         = "INSERT INTO Users (Username, Password, Encryption_Salt) VALUES (?, ?, ?)"
 )
 
 const (
@@ -130,3 +130,8 @@ const SelectHomeFeedPostsQuery = `
       AND Posts.IsPublic = 1
     ORDER BY Posts.CreatedAt DESC
     LIMIT ? OFFSET ?`
+
+const (
+	InsertUserKeyQuery       = `INSERT INTO User_Keys (User_ID, Key) VALUES (?, ?)`
+	SelectUserKeyExistsQuery = `SELECT EXISTS(SELECT 1 FROM User_Keys WHERE User_ID = ?)`
+)

@@ -51,4 +51,12 @@ const (
 const (
 	INVALID_REQUEST_MESSAGE  = "Oops! The page you're looking for doesn't exist."
 	INVALID_USERNAME_MESSAGE = "Invalid username. Please try again."
+	ErrorUserKeyNotFound     = "user key not found in cache"
+)
+
+const (
+	ArgonTime    = 1
+	ArgonMemory  = 64 * 1024
+	ArgonThreads = 4
+	ArgonKeyLen  = 32
 )
