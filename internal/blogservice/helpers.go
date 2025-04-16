@@ -119,15 +119,19 @@ func FormatDate(createdAt []byte) string {
 		return ""
 	}
 
-	// Parse the byte slice to a time.Time object in UTC
-	timeUTC, err := time.Parse("2006-01-02 15:04:05", string(createdAt))
+	// Parse the byte slice to a time.Time object
+	timeUTC, err := time.Parse(time.RFC3339, string(createdAt))
+
 	if err != nil {
+		log.Printf("Failed to parse time: %v", err)
 		return ""
 	}
 
 	// Load the America/New_York location for EST/EDT
 	loc, err := time.LoadLocation("America/New_York")
+
 	if err != nil {
+		log.Printf("Failed to load location: %v", err)
 		return ""
 	}
 
@@ -138,12 +142,59 @@ func FormatDate(createdAt []byte) string {
 	return timeEST.Format("January 2, 2006 03:04 PM")
 }
 
-func EncryptBlogData(data string, userID int, isPublic bool) (string, error) {
-	// If post is public, return content as is
+func EncryptBlogPost(title string, content string, userID int, isPublic bool) (string, string, error) {
+	// If post is public, return title and content as is
 	if isPublic {
-		return data, nil
+		return title, content, nil
 	}
 
+	// If post is private, encrypt the title or leave raw
+	encryptedTitle, err := encryptContent(title, userID, isPublic)
+
+	if err != nil {
+		log.Printf("Failed to encrypt title: %v", err)
+		return "", "", fmt.Errorf("failed to encrypt title")
+	}
+
+	// If post is private, encrypt the content or leave raw
+	encyptedContent, err := encryptContent(content, userID, isPublic)
+
+	if err != nil {
+		log.Printf("Failed to encrypt content: %v", err)
+		return "", "", fmt.Errorf("failed to encrypt content")
+	}
+
+	// Return encrypted title and content
+	return encryptedTitle, encyptedContent, nil
+}
+
+func DecryptBlogPost(title string, content string, userID int, isPublic bool) (string, string, error) {
+	// If post is public, return title and content as is
+	if isPublic {
+		return title, content, nil
+	}
+
+	// If post is private, decrypt the title or leave raw
+	decryptedTitle, err := decryptContent(title, userID, isPublic)
+
+	if err != nil {
+		log.Printf("Failed to decrypt title: %v", err)
+		return "", "", fmt.Errorf("failed to decrypt title")
+	}
+
+	// If post is private, decrypt the content or leave raw
+	decryptedContent, err := decryptContent(content, userID, isPublic)
+
+	if err != nil {
+		log.Printf("Failed to decrypt content: %v", err)
+		return "", "", fmt.Errorf("failed to decrypt content")
+	}
+
+	// Return decrypted title and content
+	return decryptedTitle, decryptedContent, nil
+}
+
+func encryptContent(data string, userID int, isPublic bool) (string, error) {
 	// Get the user's encryption key
 	key, err := cache.GetUserKey(userID)
 
@@ -183,11 +234,7 @@ func EncryptBlogData(data string, userID int, isPublic bool) (string, error) {
 	return base64.StdEncoding.EncodeToString(ciphertext), nil
 }
 
-func DecryptContent(content string, userID int, isPublic bool) (string, error) {
-	if isPublic {
-		return content, nil
-	}
-
+func decryptContent(content string, userID int, isPublic bool) (string, error) {
 	// Decode the base64 string back to bytes
 	ciphertext, err := base64.StdEncoding.DecodeString(content)
 
@@ -239,4 +286,11 @@ func DecryptContent(content string, userID int, isPublic bool) (string, error) {
 
 	// Return the decrypted string
 	return string(plaintext), nil
+}
+
+func TruncateString(content string, max int) string {
+	if len(content) <= max {
+		return content
+	}
+	return content[:max] + utils.DOTS_STRING
 }

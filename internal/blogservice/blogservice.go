@@ -9,19 +9,12 @@ import (
 )
 
 func InsertBlogPostIntoDB(db *sql.DB, postData *types.CreateBlogPost) error {
-
-	content, err := EncryptBlogData(postData.Content, postData.UserID, postData.IsPublic)
-
-	if err != nil {
-		log.Printf("Failed to encrypt blog post content: %v", err)
-		return fmt.Errorf("encryption error: failed to encrypt blog post content")
-	}
-
-	title, err := EncryptBlogData(postData.Title, postData.UserID, postData.IsPublic)
+	// Encrypt blog content if needed
+	title, content, err := EncryptBlogPost(postData.Title, postData.Content, postData.UserID, postData.IsPublic)
 
 	if err != nil {
-		log.Printf("Failed to encrypt blog post title: %v", err)
-		return fmt.Errorf("encryption error: failed to encrypt blog post title")
+		log.Printf("Failed to encrypt blog post title and content: %v", err)
+		return fmt.Errorf("encryption error: failed to encrypt blog post title and content")
 	}
 
 	// Execute the SQL query
@@ -43,15 +36,21 @@ func InsertBlogPostIntoDB(db *sql.DB, postData *types.CreateBlogPost) error {
 }
 
 func UpdateBlogPostInDB(db *sql.DB, postData *types.UpdateBlogPost) error {
+	// Encrypt blog content if needed
+	title, content, err := EncryptBlogPost(postData.Title, postData.Content, postData.UserID, postData.IsPublic)
+
+	if err != nil {
+		return fmt.Errorf("encryption error: failed to encrypt blog post title and content")
+	}
+
 	// Execute the SQL query
-	if result, err := db.Exec(utils.UpdatePostQuery, postData.Title, postData.Content, postData.IsPublic, postData.ID, postData.UserID); err != nil {
+	if result, err := db.Exec(utils.UpdatePostQuery, title, content, postData.IsPublic, postData.ID, postData.UserID); err != nil {
 		log.Printf("SQL execution error while updating blog post ID %d: %v", postData.ID, err)
 		return fmt.Errorf("database error: failed to update blog post")
 
 	} else if _, err := result.RowsAffected(); err != nil {
 		log.Printf("Error retrieving affected rows for blog post update ID %d: %v", postData.ID, err)
 		return fmt.Errorf("database error: unable to confirm blog post update")
-
 	}
 
 	// Return nil if updating post in DB was successful
@@ -77,82 +76,63 @@ func DeleteBlogPostFromDB(db *sql.DB, postID int, userID int) error {
 	return nil
 }
 
-func GetBlogPostByUserCount(db *sql.DB, username string, isOwner bool) (int, error) {
-	var count int
-	var query string
-
-	if !isOwner {
-		query = utils.SelectPublicPostsCountByUsernameQuery
-	} else {
-		query = utils.SelectAllPostsCountByUsernameQuery
-	}
-
-	// Execute the query to retrieve blog posts count from user
-	if err := db.QueryRow(query, username).Scan(&count); err != nil {
-		return 0, fmt.Errorf("error querying post count for user %s: %w", username, err)
-	}
-
-	// Return the count of posts
-	return count, nil
-}
-
-func GetBlogPostsByUser(db *sql.DB, username string, isOwner bool, page int) ([]*types.BlogPostData, int, error) {
+func GetBlogPostsByUser(db *sql.DB, username string, isOwner bool, page, userID int) ([]*types.BlogPostData, int, error) {
+	// Check if user exists in the database
 	var exists bool
-
-	// check if user is present in the database
 	if err := db.QueryRow(utils.UserExistsQuery, username).Scan(&exists); err != nil || !exists {
-		return nil, 0, fmt.Errorf("user %s does not exist or error occurred", username)
+		return nil, 0, fmt.Errorf("user %s does not exist or an error occurred", username)
 	}
 
-	// Calculate pagination offset based on post limit
+	// Calculate pagination offset based on the post limit
 	limit := utils.POST_LIMIT_PER_PAGE
 	offset := (page - 1) * limit
 
-	// Assign SQL query to fetch blog posts based on ownership
-	var query string
-	if !isOwner {
-		query = utils.SelectPublicPostsByUsernameQuery
-	} else {
-		query = utils.SelectAllPostsByUsernameQuery
+	// Execute the query to retrieve blog posts from the user
+	rows, err := db.Query(utils.SelectPostsByUsername, username, userID, limit, offset)
+
+	if err != nil {
+		return nil, 0, fmt.Errorf("error querying posts for user %s: %w", username, err)
 	}
 
-	// Execute the query to retrieve blog posts from user
-	rows, err := db.Query(query, username, limit, offset)
-	if err != nil {
-		return nil, 0, fmt.Errorf("error querying posts for user: %s", username)
-	}
 	defer rows.Close()
 
-	// Collect the results
+	// Prepare the slice for the results
 	var posts []*types.BlogPostData
-	var total_count int = 0
+	var totalCount int
+
+	// Iterate over the rows to build the posts slice
 	for rows.Next() {
 		post := &types.BlogPostData{}
 		var createdAt []byte
 
 		// Scan the row into the post struct
-		if err := rows.Scan(&post.ID, &post.Title, &post.Content, &createdAt, &post.IsPublic, &total_count); err != nil {
-			return nil, 0, fmt.Errorf("error scanning post for user: %s", username)
+		if err := rows.Scan(&post.ID, &post.Title, &post.Content, &createdAt, &post.IsPublic, &totalCount); err != nil {
+			return nil, 0, fmt.Errorf("error scanning post for user %s: %w", username, err)
 		}
 
-		// Limit content length to 100 characters and add dots
-		if len(post.Content) > 100 {
-			post.Content = post.Content[:100] + utils.DOTS_STRING
+		// Decrypt the content and title if needed
+		title, content, err := DecryptBlogPost(post.Title, post.Content, userID, post.IsPublic)
+
+		if err != nil {
+			return nil, 0, fmt.Errorf("encryption error: failed to decrypt blog post title and content")
 		}
+
+		// Assign decrypted title and content to the post
+		post.Content = TruncateString(content, utils.BLOG_POST_PREVIEW_LENGTH)
+		post.Title = title
 
 		// Format the creation date for the UI
 		post.CreatedAt = FormatDate(createdAt)
 
-		// Add posts to array of posts
+		// Append the post to the results slice
 		posts = append(posts, post)
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, 0, fmt.Errorf("error iterating posts for user: %s", username)
+		return nil, 0, fmt.Errorf("error iterating posts for user %s: %w", username, err)
 	}
 
-	// Return arr of posts & null if successful
-	return posts, total_count, nil
+	return posts, totalCount, nil
 }
 
 func GetBlogPostData(db *sql.DB, postID int, userID int, isLoggedIn bool) (*types.BlogPostPageData, error) {
@@ -170,6 +150,17 @@ func GetBlogPostData(db *sql.DB, postID int, userID int, isLoggedIn bool) (*type
 		return nil, fmt.Errorf("post not found or access denied")
 	}
 
+	// Decrypt the content if needed
+	title, content, err := DecryptBlogPost(pageData.Post.Title, pageData.Post.Content, userID, pageData.Post.IsPublic)
+
+	if err != nil {
+		return nil, fmt.Errorf("encryption error: failed to decrypt blog post title and content")
+	}
+
+	// Assign decrypted title and content to the post data
+	pageData.Post.Title = title
+	pageData.Post.Content = content
+
 	// Format the username & created date
 	pageData.Username = utils.CapitalizeFirstLetter(pageData.Username)
 	pageData.Post.CreatedAt = FormatDate(createdAt)
@@ -178,16 +169,19 @@ func GetBlogPostData(db *sql.DB, postID int, userID int, isLoggedIn bool) (*type
 	pageData.IsOwner = isLoggedIn && userID == postUserID
 	pageData.IsLoggedIn = isLoggedIn
 
+	// Get likes count for the blog post
 	likesCount, err := GetLikesCount(db, postID)
 
 	if err != nil {
 		log.Printf("Error fetching likes count for post %d: %v", postID, err)
-		return nil, err
+		return nil, fmt.Errorf("database error: failed to retrieve likes count")
 	}
 
+	// Assign likes count to the page data
 	pageData.LikesCount = likesCount
 
 	if isLoggedIn {
+		// Check if the user has liked the post
 		hasLiked, err := HasUserLikedPost(db, postID, userID)
 
 		if err != nil {
@@ -195,6 +189,7 @@ func GetBlogPostData(db *sql.DB, postID int, userID int, isLoggedIn bool) (*type
 			return nil, fmt.Errorf("database error: failed to check like status")
 		}
 
+		// Assign like status to the page data
 		pageData.HasUserLiked = hasLiked
 	}
 
@@ -206,8 +201,10 @@ func GetBlogPostData(db *sql.DB, postID int, userID int, isLoggedIn bool) (*type
 		return nil, fmt.Errorf("database error: failed to retrieve comments")
 	}
 
+	// Assign comments to the page data
 	pageData.Comments = comments
 
+	// Return the page data if successful
 	return pageData, nil
 }
 
@@ -220,6 +217,19 @@ func GetPostDataOnEdit(db *sql.DB, formData *types.BlogPostFormData, postID, use
 
 		return fmt.Errorf("database error occurred while accessing the post")
 	}
+
+	// Decrypt the content if needed
+	title, content, err := DecryptBlogPost(formData.Title, formData.Content, userID, formData.IsPublic)
+
+	if err != nil {
+		return fmt.Errorf("encryption error: failed to decrypt blog post title and content")
+	}
+
+	// Assign decrypted/raw title and content to the form data
+	formData.Title = title
+	formData.Content = content
+
+	// Return nil if retrieving post data for edit was successful
 	return nil
 }
 
@@ -325,6 +335,7 @@ func ToggleLikeOnPost(db *sql.DB, postID int, userID int) (bool, error) {
 func GetLikesCount(db *sql.DB, postID int) (int, error) {
 	var count int
 
+	// Execute the SQL query to count likes for the post
 	if err := db.QueryRow(utils.CountLikesQuery, postID).Scan(&count); err != nil {
 		return 0, fmt.Errorf("error counting likes")
 	}
@@ -335,6 +346,7 @@ func GetLikesCount(db *sql.DB, postID int) (int, error) {
 func HasUserLikedPost(db *sql.DB, postID, userID int) (bool, error) {
 	var exists bool
 
+	// Execute the SQL query to check if the user has liked the post
 	if err := db.QueryRow(utils.CheckUserLikedQuery, userID, postID).Scan(&exists); err != nil {
 		return false, fmt.Errorf("error checking like status")
 	}
@@ -343,7 +355,7 @@ func HasUserLikedPost(db *sql.DB, postID, userID int) (bool, error) {
 }
 
 func ToggleFollowUser(db *sql.DB, followerID int, followingUsername string) error {
-	// Step 1: Retrieve the user ID of the user being followed
+	// Retrieve the user ID of the user being followed
 	var followingID int
 	err := db.QueryRow(utils.GetUserIDQuery, followingUsername).Scan(&followingID)
 	if err != nil {
@@ -354,7 +366,7 @@ func ToggleFollowUser(db *sql.DB, followerID int, followingUsername string) erro
 		return fmt.Errorf("database error: Failed to retrieve user ID")
 	}
 
-	// Step 2: Check if the user is already following the other user
+	// Check if the user is already following the other user
 	var exists int
 	err = db.QueryRow(utils.CheckFollowQuery, followerID, followingID).Scan(&exists)
 	if err != nil {
@@ -365,14 +377,14 @@ func ToggleFollowUser(db *sql.DB, followerID int, followingUsername string) erro
 	var result sql.Result
 
 	if exists == 0 {
-		// Step 3: If not following, add a follow
+		// If not following, add a follow
 		result, err = db.Exec(utils.InsertFollowQuery, followerID, followingID)
 		if err != nil {
 			log.Printf("Database error: Failed to add follow for user %d -> %d: %v", followerID, followingID, err)
 			return fmt.Errorf("database error: Failed to add follow")
 		}
 	} else {
-		// Step 4: If already following, remove the follow
+		// If already following, remove the follow
 		result, err = db.Exec(utils.DeleteFollowQuery, followerID, followingID)
 		if err != nil {
 			log.Printf("Database error: Failed to remove follow for user %d -> %d: %v", followerID, followingID, err)
@@ -380,7 +392,7 @@ func ToggleFollowUser(db *sql.DB, followerID int, followingUsername string) erro
 		}
 	}
 
-	// Step 5: Validate that the operation affected rows
+	// Validate that the operation affected rows
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		log.Printf("Database error: Failed to retrieve affected rows for follow operation: %v", err)
@@ -396,9 +408,13 @@ func ToggleFollowUser(db *sql.DB, followerID int, followingUsername string) erro
 
 func IsFollowingUser(db *sql.DB, followerID int, followingUsername string) (bool, error) {
 	var followingID int
+
+	// Execute the SQL query to retrieve the user ID of the user being followed
 	db.QueryRow(utils.GetUserIDQuery, followingUsername).Scan(&followingID)
 
 	var exists int
+
+	// Execute the SQL query to check if the user is following the other user
 	err := db.QueryRow(utils.CheckFollowQuery, followerID, followingID).Scan(&exists)
 
 	if err != nil {
@@ -406,6 +422,7 @@ func IsFollowingUser(db *sql.DB, followerID int, followingUsername string) (bool
 		return false, fmt.Errorf("database error: Failed to check follow status")
 	}
 
+	// Return true if the user is following, false otherwise
 	return exists == 1, nil
 }
 

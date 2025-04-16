@@ -32,7 +32,6 @@ func DeriveAndCacheUserKey(userID int, password string, salt []byte) error {
 }
 
 func CacheUserKey(userID int, key []byte) {
-	log.Printf("Storing key for user ID %d in cache", userID)
 	// Store the derived key in the cache (ID : Key)
 	userKeyCache.Store(userID, key)
 }
@@ -49,10 +48,28 @@ func GetUserKey(userID int) ([]byte, error) {
 	key, ok := value.([]byte)
 
 	if !ok {
+		log.Printf("Invalid key type found in cache for user ID: %d", userID)
 		return nil, fmt.Errorf("invalid key type found in cache")
 	}
 
-	log.Printf("Key: %x", key)
 	// Return the key
 	return key, nil
+}
+
+func HasUserKey(userID int) bool {
+	// Check if the user key exists in the cache
+	value, ok := userKeyCache.Load(userID)
+
+	if !ok {
+		return false
+	}
+
+	// Check if the value is of type []byte
+	_, valid := value.([]byte)
+
+	return valid
+}
+
+func RemoveUserKey(userID int) {
+	userKeyCache.Delete(userID)
 }

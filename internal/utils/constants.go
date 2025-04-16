@@ -18,6 +18,10 @@ const (
 )
 
 const (
+	BLOG_POST_PREVIEW_LENGTH = 100
+)
+
+const (
 	EXPIRATION_TIME = 24
 )
 
