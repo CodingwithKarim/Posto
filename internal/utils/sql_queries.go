@@ -9,7 +9,7 @@ const (
 )
 
 const (
-	InsertUserQuery = "INSERT INTO Users (Username, Password) VALUES (?, ?)"
+	InsertUserQuery = "INSERT INTO Users (Username, Password, Encryption_Salt) VALUES (?, ?, ?)"
 )
 
 const (
