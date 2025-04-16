@@ -1,137 +1,116 @@
 package utils
 
 const (
-	UserExistsQuery         = "SELECT EXISTS(SELECT 1 FROM Users WHERE Username = ?)"
-	GetUserCredentialsQuery = "SELECT ID, Password, Encryption_Salt FROM Users WHERE Username = ?"
-	InsertUserQuery         = "INSERT INTO Users (Username, Password, Encryption_Salt) VALUES (?, ?, ?)"
+	UserExistsQuery         = "SELECT EXISTS(SELECT 1 FROM users WHERE Username = ?)"
+	GetUserCredentialsQuery = "SELECT ID, Password, Encryption_Salt FROM users WHERE Username = ?"
+	InsertUserQuery         = "INSERT INTO users (Username, Password, Encryption_Salt) VALUES (?, ?, ?)"
 )
 
 const (
 	InsertPostQuery = `
-		INSERT INTO Posts (Title, Content, UserID, IsPublic) 
+		INSERT INTO posts (Title, Content, UserID, IsPublic) 
 		VALUES (?, ?, ?, ?)
 	`
 	UpdatePostQuery = `
-		UPDATE Posts 
+		UPDATE posts 
 		SET Title = ?, Content = ?, IsPublic = ? 
 		WHERE ID = ? AND UserID = ?
 	`
-	DeletePostQuery = "DELETE FROM Posts WHERE ID = ? AND UserID = ?"
+	DeletePostQuery = "DELETE FROM posts WHERE ID = ? AND UserID = ?"
 
-	SelectPublicPostsByUsernameQuery = `
+	SelectPostsByUsername = `
 		SELECT ID, Title, Content, CreatedAt, IsPublic, Count(*) OVER() AS total_count
-		FROM Posts
-		WHERE UserID = (SELECT ID FROM Users WHERE Username = ?) 
-		  AND IsPublic = 1
-		ORDER BY CreatedAt DESC 
+		FROM posts
+		WHERE UserID = (SELECT ID FROM users WHERE Username = ?)
+		AND (IsPublic = 1 OR UserID = ?)
+		ORDER BY CreatedAt DESC
 		LIMIT ? OFFSET ?
 	`
-
-	SelectAllPostsByUsernameQuery = `
-		SELECT ID, Title, Content, CreatedAt, IsPublic, Count(*) OVER() AS total_count
-		FROM Posts
-		WHERE UserID = (SELECT ID FROM Users WHERE Username = ?)
-		ORDER BY CreatedAt DESC 
-		LIMIT ? OFFSET ?
-	`
-
-	SelectAllPostsCountByUsernameQuery = `
-		SELECT COUNT(*)
-		FROM Posts
-		WHERE UserID = (SELECT ID FROM Users WHERE Username = ?)`
-
-	SelectPublicPostsCountByUsernameQuery = `
-		SELECT COUNT(*)
-		FROM Posts
-		WHERE UserID = (SELECT ID FROM Users WHERE Username = ?)
-		  AND IsPublic = 1`
 
 	SelectPostDetailsQuery = `
 		SELECT 
 			p.ID, p.Title, p.Content, p.CreatedAt, 
 			p.IsPublic, p.UserID, u.Username
-		FROM Posts p
-		JOIN Users u ON p.UserID = u.ID
+		FROM posts p
+		JOIN users u ON p.UserID = u.ID
 		WHERE p.ID = ? AND (p.IsPublic = 1 OR p.UserID = ?)
 	`
 
 	SelectEditPostQuery = `
 		SELECT Title, Content, IsPublic
-		FROM Posts
+		FROM posts
 		WHERE ID = ? AND UserID = ?
 	`
 )
 
 const (
-	InsertCommentQuery         = `INSERT INTO Comments (PostID, UserID, Comment) VALUES (?, ?, ?)`
+	InsertCommentQuery = `
+		INSERT INTO comments (PostID, UserID, Comment) VALUES (?, ?, ?)`
+
 	SelectCommentsForPostQuery = `
-	SELECT 
-    c.ID,
-    c.Comment, 
-    c.CreatedAt, 
-    u.Username 
-FROM 
-    Comments c
-JOIN 
-    Users u ON c.UserID = u.ID
-WHERE 
-    c.PostID = ?
-ORDER BY 
-    c.CreatedAt ASC`
+		SELECT 
+			c.ID,
+			c.Comment, 
+			c.CreatedAt, 
+			u.Username 
+		FROM 
+			comments c
+		JOIN 
+			users u ON c.UserID = u.ID
+		WHERE 
+			c.PostID = ?
+		ORDER BY 
+			c.CreatedAt ASC`
 )
 
 const (
-	InsertLikeQuery     = `INSERT INTO Likes (UserID, PostID) VALUES (?, ?)`
-	DeleteLikeQuery     = `DELETE FROM Likes WHERE UserID = ? AND PostID = ?`
-	CountLikesQuery     = `SELECT COUNT(*) FROM Likes WHERE PostID = ?`
+	InsertLikeQuery     = `INSERT INTO likes (UserID, PostID) VALUES (?, ?)`
+	DeleteLikeQuery     = `DELETE FROM likes WHERE UserID = ? AND PostID = ?`
+	CountLikesQuery     = `SELECT COUNT(*) FROM likes WHERE PostID = ?`
 	CheckUserLikedQuery = `
-		 SELECT EXISTS (
-        SELECT 1 FROM Likes WHERE UserID = ? AND PostID = ?
-    )
+		SELECT EXISTS (
+			SELECT 1 FROM likes WHERE UserID = ? AND PostID = ?
+		)
 	`
 )
 
 const (
-	// Get user ID from username
 	GetUserIDQuery = `
-        SELECT ID FROM Users WHERE Username = ?`
+		SELECT ID FROM users WHERE Username = ?`
 
-	// Check if a user is already following another user
 	CheckFollowQuery = `
-        SELECT EXISTS (
-            SELECT 1 FROM User_Follows 
-            WHERE follower_id = ? AND following_id = ?
-        )`
+		SELECT EXISTS (
+			SELECT 1 FROM user_follows 
+			WHERE follower_id = ? AND following_id = ?
+		)`
 
-	// Insert a new follow relationship
 	InsertFollowQuery = `
-        INSERT INTO User_Follows (follower_id, following_id) 
-        VALUES (?, ?)`
+		INSERT INTO user_follows (follower_id, following_id) 
+		VALUES (?, ?)`
 
-	// Remove an existing follow relationship
 	DeleteFollowQuery = `
-        DELETE FROM User_Follows 
-        WHERE follower_id = ? AND following_id = ?`
+		DELETE FROM user_follows 
+		WHERE follower_id = ? AND following_id = ?`
 )
 
 const SelectHomeFeedPostsQuery = `
-    SELECT 
-        Posts.ID, 
-        Posts.Title, 
-        Posts.Content, 
-        Posts.CreatedAt, 
-        Posts.IsPublic, 
-        Users.Username AS AuthorUsername,
+	SELECT 
+		posts.ID, 
+		posts.Title, 
+		posts.Content, 
+		posts.CreatedAt, 
+		posts.IsPublic, 
+		users.Username AS AuthorUsername,
 		Count(*) OVER() AS total_count
-    FROM Posts
-    JOIN User_Follows ON Posts.UserID = User_Follows.following_id
-    JOIN Users ON Users.ID = Posts.UserID
-    WHERE User_Follows.follower_id = ? 
-      AND Posts.IsPublic = 1
-    ORDER BY Posts.CreatedAt DESC
-    LIMIT ? OFFSET ?`
+	FROM posts
+	JOIN user_follows ON posts.UserID = user_follows.following_id
+	JOIN users ON users.ID = posts.UserID
+	WHERE user_follows.follower_id = ? 
+	  AND posts.IsPublic = 1
+	ORDER BY posts.CreatedAt DESC
+	LIMIT ? OFFSET ?`
 
 const (
-	InsertUserKeyQuery       = `INSERT INTO User_Keys (User_ID, Key) VALUES (?, ?)`
-	SelectUserKeyExistsQuery = `SELECT EXISTS(SELECT 1 FROM User_Keys WHERE User_ID = ?)`
+	InsertUserKeyQuery       = `INSERT INTO user_keys (User_ID, Key) VALUES (?, ?)`
+	SelectUserKeyExistsQuery = `SELECT EXISTS(SELECT 1 FROM user_keys WHERE User_ID = ?)`
 )

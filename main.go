@@ -41,7 +41,7 @@ func main() {
 	}
 
 	// Construct the connection string for MySQL
-	dsn := fmt.Sprintf("%s:%s@unix(%s)/%s", mysqlUser, mysqlPassword, mysqlSocket, mysqlDB)
+	dsn := fmt.Sprintf("%s:%s@tcp(%s)/%s?parseTime=true", mysqlUser, mysqlPassword, mysqlSocket, mysqlDB)
 	database, err := sql.Open("mysql", dsn)
 
 	if err != nil {
