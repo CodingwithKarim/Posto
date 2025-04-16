@@ -116,7 +116,7 @@ func RenderUserProfilePageHandler(db *sql.DB) gin.HandlerFunc {
 		page := blogservice.GetPageQuery(context)
 
 		// Fetch the blog posts from the database
-		posts, totalCount, err := blogservice.GetBlogPostsByUser(db, username, isOwner, page)
+		posts, totalCount, err := blogservice.GetBlogPostsByUser(db, username, isOwner, page, user.ID)
 
 		if err != nil {
 			utils.SendErrorResponse(context, http.StatusNotFound, err.Error())

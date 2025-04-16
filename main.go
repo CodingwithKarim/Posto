@@ -12,7 +12,6 @@ import (
 	"App/internal/types"
 	"database/sql"
 
-	"github.com/gin-contrib/static"
 	"github.com/gin-gonic/gin"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/sessions"
@@ -40,21 +39,15 @@ func main() {
 	mysqlHost := os.Getenv("MYSQL_HOST")
 	mysqlDB := os.Getenv("MYSQL_DB")
 	cookieStoreKey := os.Getenv("COOKIE_STORE_KEY")
-	certFile := os.Getenv("CERT_FILE_PATH")
-	keyFile := os.Getenv("KEY_FILE_PATH")
 
 	// Ensure all necessary environment variables are present
 	if mysqlUser == "" || mysqlPassword == "" || mysqlHost == "" || mysqlDB == "" || cookieStoreKey == "" {
 		log.Fatal("Required environment variables are missing.")
 	}
 
-	// Ensure the SSL certificate and key files are present
-	if certFile == "" || keyFile == "" {
-		log.Fatal("SSL certificate or key file paths are missing.")
-	}
-
 	// Connect to database through formatted connection string
 	database, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:3306)/%s", mysqlUser, mysqlPassword, mysqlHost, mysqlDB))
+
 	if err != nil {
 		log.Fatal("Error opening database connection:", err)
 	}
@@ -90,11 +83,9 @@ func main() {
 		Output: logFile,
 	}))
 
-	// no reverse proxy to trust
-	err = router.SetTrustedProxies(nil)
-
-	if err != nil {
-		log.Fatalf("Failed to set trusted proxies: %v", err) // Log fatal error if setting trusted proxies fails
+	// Set up trusted proxies
+	if err := router.SetTrustedProxies([]string{"127.0.0.1"}); err != nil {
+		log.Fatalf("Failed to set trusted proxies: %v", err)
 	}
 
 	// This function map allows us to use custom functions in our HTML templates
@@ -122,14 +113,15 @@ func main() {
 		},
 	}
 
-	// Create a custom template with functions
+	// Create a custom template with the template functions defined above
 	tmplate, err := template.New("").Funcs(templateFunctions).ParseGlob("./internal/templates/*.html")
 
 	if err != nil {
 		log.Fatalf("Error parsing templates: %v", err)
 	}
 
-	// Set custom template for Gin
+	// Set custom template for Gin router
+	// This allows us to use the custom functions in our HTML templates
 	router.SetHTMLTemplate(tmplate)
 
 	// Middleware for blocking suspicious IPs
@@ -163,11 +155,8 @@ func main() {
 		authRoutes.GET("/feed", api.GetHomeFeedHandler(app))
 	}
 
-	// Configure public folder to be accessed from root directory
-	router.Use(static.Serve("/", static.LocalFile("./public", false)))
-
-	// Start the HTTPS server on port 443 using SSL certificates
-	if err := router.RunTLS(":443", certFile, keyFile); err != nil {
-		log.Fatal("Error starting HTTPS server:", err)
+	// Start the server on port 8080 with SSL
+	if err := router.Run(":8080"); err != nil {
+		log.Fatal("Error starting HTTP server:", err)
 	}
 }

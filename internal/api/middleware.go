@@ -1,6 +1,7 @@
 package api
 
 import (
+	"App/internal/cache"
 	"App/internal/types"
 	"App/internal/userservice"
 	"App/internal/utils"
@@ -21,9 +22,17 @@ func RequireAuth(app *types.App) gin.HandlerFunc {
 		// Attempt to authenticate user
 		user, err := authenticateUser(app, context)
 
-		// Handle error if accessing protected resource
 		if err != nil {
 			userservice.HandleAuthenticationError(context, err)
+			return
+		}
+
+		// Check if the user key exists in the cache
+		if validKey := cache.HasUserKey(user.ID); !validKey {
+			// User key not found in cache, log out the user session
+			userservice.LogoutUserSession(context, app.SessionStore)
+
+			userservice.HandleAuthenticationError(context, fmt.Errorf("user key not found in cache for user ID: %d", user.ID))
 			return
 		}
 
@@ -39,8 +48,17 @@ func OptionalAuth(app *types.App) gin.HandlerFunc {
 	return func(context *gin.Context) {
 		// Attempt to authenticate user
 		if user, err := authenticateUser(app, context); err == nil {
-			// Store user in context to be retrieved for future handlers
-			context.Set(utils.USER, user)
+			// Check if the user key exists in the cache
+			if validKey := cache.HasUserKey(user.ID); !validKey {
+				// User key not found in cache, log out the user session
+				if err := userservice.LogoutUserSession(context, app.SessionStore); err == nil {
+					log.Printf("OptionalAuth: encryption key missing for user %d; session logged out", user.ID)
+				}
+
+			} else {
+				// User key found in cache, store user in context
+				context.Set(utils.USER, user)
+			}
 		}
 
 		// Proceed to next handler regardless
@@ -53,14 +71,14 @@ func authenticateUser(app *types.App, context *gin.Context) (types.User, error) 
 	session, err := app.SessionStore.Get(context.Request, utils.COOKIE_SESSION)
 
 	if err != nil {
-		return types.User{}, fmt.Errorf("error accessing session: %+v", err.Error())
+		return types.User{}, fmt.Errorf("error accessing session")
 	}
 
 	// Extract user from session
 	user, ok := session.Values[utils.USER].(types.User)
 
 	if !ok || !userservice.IsValidUser(user) {
-		return types.User{}, fmt.Errorf("error validating user, user id: %d and username: %s", user.ID, user.Username)
+		return types.User{}, fmt.Errorf("error validating user, username: %s", user.Username)
 	}
 
 	// Validate user in the database

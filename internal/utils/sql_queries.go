@@ -25,33 +25,13 @@ const (
 )
 
 const (
-	SelectPublicPostsByUsernameQuery = `
+	SelectPostsByUsername = `
 		SELECT ID, Title, Content, CreatedAt, IsPublic, Count(*) OVER() AS total_count
-		FROM Posts
-		WHERE UserID = (SELECT ID FROM Users WHERE Username = ?) 
-		  AND IsPublic = 1
-		ORDER BY CreatedAt DESC 
-		LIMIT ? OFFSET ?
-	`
-
-	SelectAllPostsByUsernameQuery = `
-		SELECT ID, Title, Content, CreatedAt, IsPublic, Count(*) OVER() AS total_count
-		FROM Posts
-		WHERE UserID = (SELECT ID FROM Users WHERE Username = ?)
-		ORDER BY CreatedAt DESC 
-		LIMIT ? OFFSET ?
-	`
-
-	SelectAllPostsCountByUsernameQuery = `
-		SELECT COUNT(*)
-		FROM Posts
-		WHERE UserID = (SELECT ID FROM Users WHERE Username = ?)`
-
-	SelectPublicPostsCountByUsernameQuery = `
-		SELECT COUNT(*)
-		FROM Posts
-		WHERE UserID = (SELECT ID FROM Users WHERE Username = ?)
-		  AND IsPublic = 1`
+		FROM posts
+		WHERE UserID = (SELECT ID FROM users WHERE Username = ?)
+		AND (IsPublic = 1 OR UserID = ?)
+		ORDER BY CreatedAt DESC
+		LIMIT ? OFFSET ?`
 
 	SelectPostDetailsQuery = `
         SELECT 

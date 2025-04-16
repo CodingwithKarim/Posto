@@ -18,6 +18,10 @@ const (
 )
 
 const (
+	BLOG_POST_PREVIEW_LENGTH = 100
+)
+
+const (
 	EXPIRATION_TIME = 24
 )
 
@@ -51,4 +55,11 @@ const (
 const (
 	INVALID_REQUEST_MESSAGE  = "Oops! The page you're looking for doesn't exist."
 	INVALID_USERNAME_MESSAGE = "Invalid username. Please try again."
+)
+
+const (
+	ArgonTime    = 1
+	ArgonMemory  = 64 * 1024
+	ArgonThreads = 4
+	ArgonKeyLen  = 32
 )
