@@ -1,12 +1,14 @@
 package userservice
 
 import (
+	"crypto/rand"
 	"database/sql"
 	"errors"
 	"fmt"
 	"log"
 	"net/http"
 
+	"App/internal/cache"
 	"App/internal/types"
 	"App/internal/utils"
 
@@ -15,12 +17,12 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-func RegisterUser(username string, password string, database *sql.DB) error {
+func RegisterUserAndSaveSession(username string, password string, context *gin.Context, app *types.App) error {
 	// Declare variable to check if username exists
 	var exists bool
 
 	// Execute SQL query & store result in exists variable
-	if err := database.QueryRow(utils.UserExistsQuery, username).Scan(&exists); err != nil {
+	if err := app.Database.QueryRow(utils.UserExistsQuery, username).Scan(&exists); err != nil {
 		log.Println("Error checking if username exists:", err)
 		return fmt.Errorf("error checking username availability")
 	}
@@ -38,43 +40,79 @@ func RegisterUser(username string, password string, database *sql.DB) error {
 		return fmt.Errorf("failed to hash password")
 	}
 
+	// Generate a random encryption salt
+	encryptionSalt := make([]byte, 16)
+
+	if _, err := rand.Read(encryptionSalt); err != nil {
+		log.Println("Failed to generate encryption salt:", err)
+		return fmt.Errorf("failed to generate encryption salt")
+	}
+
 	// Execute sql query, passing the username & hashed password
-	_, err = database.Exec(utils.InsertUserQuery, username, passwordHash)
+	result, err := app.Database.Exec(utils.InsertUserQuery, username, passwordHash, encryptionSalt)
 
 	if err != nil {
 		log.Println("Error inserting new user into database:", err)
 		return fmt.Errorf("failed to insert new user")
 	}
 
-	// Return nil if no errors occurred
+	// Get the last inserted ID
+	userID, err := result.LastInsertId()
+
+	if err != nil {
+		log.Println("Error getting last inserted ID:", err)
+		return fmt.Errorf("failed to get last inserted ID")
+	}
+
+	id := int(userID)
+
+	// Cache the user key using the derived salt
+	cache.DeriveAndCacheUserKey(id, password, encryptionSalt)
+
+	if err := SaveUserSession(context, app.SessionStore, &types.User{
+		ID:       id,
+		Username: username,
+	}); err != nil {
+		log.Println("Failed to save user session:", err)
+		return fmt.Errorf("failed to save session after registration")
+	}
+
+	// Return nil if user registration & session saving is successful
 	return nil
 }
 
-func VerifyUserCredentials(username, password string, database *sql.DB) (types.User, error) {
+func VerifyUserCredentialsAndSaveSession(username, password string, context *gin.Context, app *types.App) error {
 	// Declare variables to store id & password hash from SQL query
 	var id int
 	var passwordHash []byte
+	var encryptionSalt []byte
 
 	// Run SQL query against the database & return the SQL row
-	row := database.QueryRow(utils.GetUserCredentialsQuery, username)
+	row := app.Database.QueryRow(utils.GetUserCredentialsQuery, username)
 
 	// Scan the row data into id and passwordHash
-	if err := row.Scan(&id, &passwordHash); err != nil {
+	if err := row.Scan(&id, &passwordHash, &encryptionSalt); err != nil {
 		log.Println("Error fetching user from database:", err)
-		return types.User{}, fmt.Errorf("user not found")
+		return fmt.Errorf("user not found")
 	}
 
 	// Compare password from user with the hashed password in the database
 	if err := bcrypt.CompareHashAndPassword(passwordHash, []byte(password)); err != nil {
 		log.Println("Error comparing password:")
-		return types.User{}, fmt.Errorf("invalid password credentials")
+		return fmt.Errorf("invalid password credentials")
 	}
 
-	// Return user struct if authentication is successful
-	return types.User{
+	cache.DeriveAndCacheUserKey(id, password, encryptionSalt)
+
+	if err := SaveUserSession(context, app.SessionStore, &types.User{
 		ID:       id,
 		Username: username,
-	}, nil
+	}); err != nil {
+		log.Println("Failed to save user session:", err)
+		return fmt.Errorf("failed to save session after registration")
+	}
+
+	return nil
 }
 
 func CheckUserExists(user types.User, database *sql.DB) bool {
@@ -94,9 +132,9 @@ func CheckUserExists(user types.User, database *sql.DB) bool {
 	return exists
 }
 
-func SaveUserSession(context *gin.Context, app *types.App, user types.User) error {
+func SaveUserSession(context *gin.Context, cookieStore *sessions.CookieStore, user *types.User) error {
 	// Retrieve session data from the request
-	session, err := app.SessionStore.Get(context.Request, utils.COOKIE_SESSION)
+	session, err := cookieStore.Get(context.Request, utils.COOKIE_SESSION)
 	if err != nil {
 		log.Printf("Failed to retrieve session data for user: %s, Error: %v", user.Username, err)
 		return fmt.Errorf("failed to retrieve session data: %w", err)

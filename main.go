@@ -137,7 +137,7 @@ func main() {
 	router.GET("/login", api.GetLoginPageHandler)
 	router.GET("/signup", api.GetSignupPageHandler)
 	router.POST("/login", api.PostLoginHandler(app))
-	router.POST("/signup", api.PostSignupHandler(app.Database))
+	router.POST("/signup", api.PostSignupHandler(app))
 
 	// Authenticated Routes (Require authentication)
 	authRoutes := router.Group("/")
