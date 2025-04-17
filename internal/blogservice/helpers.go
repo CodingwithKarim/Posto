@@ -120,7 +120,7 @@ func FormatDate(createdAt []byte) string {
 	}
 
 	// Parse the byte slice to a time.Time object
-	timeUTC, err := time.Parse(time.RFC3339, string(createdAt))
+	timeUTC, err := time.Parse("2006-01-02 15:04:05", string(createdAt))
 
 	if err != nil {
 		log.Printf("Failed to parse time: %v", err)
