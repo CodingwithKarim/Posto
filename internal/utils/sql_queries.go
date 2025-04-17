@@ -5,7 +5,7 @@ const (
 )
 
 const (
-	GetUserCredentialsQuery = "SELECT ID, Password FROM Users WHERE Username = ?"
+	GetUserCredentialsQuery = "SELECT ID, Password, Encryption_Salt FROM Users WHERE Username = ?"
 )
 
 const (
