@@ -27,8 +27,8 @@ const (
 const (
 	SelectPostsByUsername = `
 		SELECT ID, Title, Content, CreatedAt, IsPublic, Count(*) OVER() AS total_count
-		FROM posts
-		WHERE UserID = (SELECT ID FROM users WHERE Username = ?)
+		FROM Posts
+		WHERE UserID = (SELECT ID FROM Users WHERE Username = ?)
 		AND (IsPublic = 1 OR UserID = ?)
 		ORDER BY CreatedAt DESC
 		LIMIT ? OFFSET ?`
@@ -81,23 +81,19 @@ const (
 )
 
 const (
-	// Get user ID from username
 	GetUserIDQuery = `
         SELECT ID FROM Users WHERE Username = ?`
 
-	// Check if a user is already following another user
 	CheckFollowQuery = `
         SELECT EXISTS (
             SELECT 1 FROM User_Follows 
             WHERE follower_id = ? AND following_id = ?
         )`
 
-	// Insert a new follow relationship
 	InsertFollowQuery = `
         INSERT INTO User_Follows (follower_id, following_id) 
         VALUES (?, ?)`
 
-	// Remove an existing follow relationship
 	DeleteFollowQuery = `
         DELETE FROM User_Follows 
         WHERE follower_id = ? AND following_id = ?`

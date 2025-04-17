@@ -69,6 +69,7 @@ func RegisterUserAndSaveSession(username string, password string, context *gin.C
 	// Cache the user key using the derived salt
 	cache.DeriveAndCacheUserKey(id, password, encryptionSalt)
 
+	// Save the user session using the session store
 	if err := SaveUserSession(context, app.SessionStore, &types.User{
 		ID:       id,
 		Username: username,
