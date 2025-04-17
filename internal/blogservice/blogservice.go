@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"sync"
 )
 
 func InsertBlogPostIntoDB(db *sql.DB, postData *types.CreateBlogPost) error {
@@ -167,42 +168,55 @@ func GetBlogPostData(db *sql.DB, postID int, userID int, isLoggedIn bool) (*type
 	pageData.IsOwner = isLoggedIn && userID == postUserID
 	pageData.IsLoggedIn = isLoggedIn
 
-	// Get likes count for the blog post
-	likesCount, err := GetLikesCount(db, postID)
+	// Run DB lookups concurrently
+	var wg sync.WaitGroup
+	var likesErr, likedErr, commentsErr error
+	var likesCount int
+	var hasLiked bool
+	var comments []*types.Comment
 
-	if err != nil {
-		log.Printf("Error fetching likes count for post %d: %v", postID, err)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		likesCount, likesErr = GetLikesCount(db, postID)
+	}()
+
+	if isLoggedIn {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			hasLiked, likedErr = HasUserLikedPost(db, postID, userID)
+		}()
+	}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		comments, commentsErr = GetCommentsForBlogPost(db, postID)
+	}()
+
+	wg.Wait()
+
+	if likesErr != nil {
+		log.Printf("Error fetching likes count for post %d: %v", postID, likesErr)
 		return nil, fmt.Errorf("database error: failed to retrieve likes count")
 	}
 
-	// Assign likes count to the page data
-	pageData.LikesCount = likesCount
-
-	if isLoggedIn {
-		// Check if the user has liked the post
-		hasLiked, err := HasUserLikedPost(db, postID, userID)
-
-		if err != nil {
-			log.Printf("Error checking if user %d has liked post %d: %v", userID, postID, err)
-			return nil, fmt.Errorf("database error: failed to check like status")
-		}
-
-		// Assign like status to the page data
-		pageData.HasUserLiked = hasLiked
+	if isLoggedIn && likedErr != nil {
+		log.Printf("Error checking if user %d liked post %d: %v", userID, postID, likedErr)
+		return nil, fmt.Errorf("database error: failed to check like status")
 	}
 
-	// Get comments for the blog post if any
-	comments, err := GetCommentsForBlogPost(db, postID)
-
-	if err != nil {
-		log.Printf("Error fetching comments for post %d: %v", postID, err)
+	if commentsErr != nil {
+		log.Printf("Error fetching comments for post %d: %v", postID, commentsErr)
 		return nil, fmt.Errorf("database error: failed to retrieve comments")
 	}
 
-	// Assign comments to the page data
+	// Final assignments after concurrent operations
+	pageData.LikesCount = likesCount
+	pageData.HasUserLiked = hasLiked
 	pageData.Comments = comments
 
-	// Return the page data if successful
 	return pageData, nil
 }
 
