@@ -11140,9 +11140,7 @@ header.masthead .post-heading .meta a {
   word-wrap: break-word;
   /* Ensure long words wrap */
   overflow-wrap: break-word;
-  /* For better compatibility across browsers */
-  hyphens: auto;
-  /* Optional: Automatically hyphenate long words if supported */
+  hyphens: manual;
   white-space: pre-wrap;
   /* Ensure text wraps */
 }
