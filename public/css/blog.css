@@ -11118,7 +11118,7 @@ header.masthead .post-heading .meta a {
   transition: all 0.3s ease;
   word-wrap: break-word;
   overflow-wrap: break-word;
-  hyphens: auto;
+  hyphens: manual;
   white-space: pre-wrap;
 }
 
