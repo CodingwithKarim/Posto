@@ -12,6 +12,7 @@ import (
 	"App/internal/types"
 	"database/sql"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/sessions"
@@ -74,6 +75,8 @@ func main() {
 
 	// Create a router to map incoming requests to handler functions
 	router := gin.New()
+
+	router.Use(cors.Default())
 
 	// Use Gin's recovery middleware to recover from panics
 	router.Use(gin.Recovery())
