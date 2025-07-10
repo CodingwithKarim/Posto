@@ -7,6 +7,7 @@ import (
 	"App/internal/utils"
 	"fmt"
 	"log"
+	"net/http"
 	"time"
 
 	"github.com/didip/tollbooth"
@@ -136,4 +137,31 @@ func BlockSuspiciousIPsAndRateLimit(c *gin.Context) {
 
 	// Proceed with the request if within rate limits
 	c.Next()
+}
+
+func CORSMiddleware(allowedOrigins []string) gin.HandlerFunc {
+	allowed := map[string]struct{}{}
+	for _, o := range allowedOrigins {
+		allowed[o] = struct{}{}
+	}
+
+	return func(c *gin.Context) {
+		origin := c.Request.Header.Get("Origin")
+		// if you want to allow all, skip this check and use "*"
+		if _, ok := allowed[origin]; ok {
+			c.Header("Access-Control-Allow-Origin", origin)
+		}
+		c.Header("Vary", "Origin") // tell caches that we vary on origin
+		c.Header("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS")
+		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization")
+		c.Header("Access-Control-Allow-Credentials", "true")
+
+		// Handle preflight
+		if c.Request.Method == http.MethodOptions {
+			c.AbortWithStatus(http.StatusNoContent)
+			return
+		}
+
+		c.Next()
+	}
 }
