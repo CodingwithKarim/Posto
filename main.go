@@ -76,7 +76,12 @@ func main() {
 	router := gin.New()
 
 	// Use CORS middleware
-	router.Use(api.AllowCORS())
+	allowedOrigins := []string{
+		"http://localhost:3000",
+		"https://postoblog.duckdns.org",
+	}
+
+	router.Use(api.CORSMiddleware(allowedOrigins))
 
 	// Use Gin's recovery middleware to recover from panics
 	router.Use(gin.Recovery())

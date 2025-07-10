@@ -139,16 +139,25 @@ func BlockSuspiciousIPsAndRateLimit(c *gin.Context) {
 	c.Next()
 }
 
-func AllowCORS() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "*") // or specific origin
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+func CORSMiddleware(allowedOrigins []string) gin.HandlerFunc {
+	allowed := map[string]struct{}{}
+	for _, o := range allowedOrigins {
+		allowed[o] = struct{}{}
+	}
 
-		// Handle preflight request
+	return func(c *gin.Context) {
+		origin := c.Request.Header.Get("Origin")
+		if _, ok := allowed[origin]; ok {
+			c.Header("Access-Control-Allow-Origin", origin)
+		}
+
+		c.Header("Vary", "Origin")
+		c.Header("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS")
+		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization")
+		c.Header("Access-Control-Allow-Credentials", "true")
+
 		if c.Request.Method == http.MethodOptions {
-			c.AbortWithStatus(204)
+			c.AbortWithStatus(http.StatusNoContent)
 			return
 		}
 
