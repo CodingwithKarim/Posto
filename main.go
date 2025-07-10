@@ -75,6 +75,9 @@ func main() {
 	// Create a router to map incoming requests to handler functions
 	router := gin.New()
 
+	// Use CORS middleware
+	router.Use(api.AllowCORS())
+
 	// Use Gin's recovery middleware to recover from panics
 	router.Use(gin.Recovery())
 
