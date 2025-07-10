@@ -29,3 +29,11 @@ func SendErrorResponse(context *gin.Context, statusCode int, errorMessage string
 		ErrorMessage: errorMessage,
 	})
 }
+
+func TruncateChars(s string, maxRunes int) string {
+	runes := []rune(strings.TrimSpace(s))
+	if len(runes) <= maxRunes {
+		return string(runes)
+	}
+	return string(runes[:maxRunes]) + "…"
+}

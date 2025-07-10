@@ -57,6 +57,12 @@ type BlogPostBase struct {
 	Content  string
 }
 
+type BlogPreview struct {
+	ID      int    `json:"id"`
+	Title   string `json:"title"`
+	Content string `json:"content"`
+}
+
 type CreateBlogPost struct {
 	BlogPostBase
 	UserID int

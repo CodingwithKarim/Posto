@@ -115,19 +115,28 @@ func RenderUserProfilePageHandler(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
+		previews := make([]types.BlogPreview, len(posts))
+
+		for i, p := range posts {
+			previews[i] = types.BlogPreview{
+				ID:      p.ID,
+				Title:   p.Title,
+				Content: p.Content,
+			}
+		}
+
 		isFollowing := false
 
 		if isLoggedIn {
-			isFollowing, err = blogservice.IsFollowingUser(db, user.ID, username)
-
-			if err != nil {
+			if f, err := blogservice.IsFollowingUser(db, user.ID, username); err == nil {
+				isFollowing = f
+			} else {
 				utils.SendErrorResponse(context, http.StatusInternalServerError, err.Error())
 				return
 			}
 		}
 
-		// If not AJAX, We pass the page data to render the HTML page
-		context.HTML(http.StatusOK, utils.USER_PROFILE_PAGE, &types.BlogPageData{
+		htmlPayload := &types.BlogPageData{
 			Username:    utils.CapitalizeFirstLetter(username),
 			Posts:       posts,
 			IsOwner:     isOwner,
@@ -135,6 +144,13 @@ func RenderUserProfilePageHandler(db *sql.DB) gin.HandlerFunc {
 			IsFollowing: isFollowing,
 			CurrentPage: page,
 			Tabs:        (totalCount + utils.POST_LIMIT_PER_PAGE - 1) / utils.POST_LIMIT_PER_PAGE,
+		}
+
+		context.Negotiate(http.StatusOK, gin.Negotiate{
+			Offered:  []string{gin.MIMEJSON, gin.MIMEHTML},
+			HTMLName: utils.USER_PROFILE_PAGE,
+			JSONData: gin.H{"posts": previews},
+			Data:     htmlPayload,
 		})
 	}
 }
