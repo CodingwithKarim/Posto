@@ -75,16 +75,8 @@ func main() {
 	// Create a router to map incoming requests to handler functions
 	router := gin.New()
 
-	router.Use(func(c *gin.Context) {
-		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Methods", "GET")
-		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization")
-		if c.Request.Method == http.MethodOptions {
-			c.AbortWithStatus(http.StatusNoContent)
-			return
-		}
-		c.Next()
-	})
+	// Use CORS middleware
+	router.Use(api.AllowCORS())
 
 	// Use Gin's recovery middleware to recover from panics
 	router.Use(gin.Recovery())
