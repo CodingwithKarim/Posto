@@ -77,7 +77,7 @@ func main() {
 
 	// Use CORS middleware
 	allowedOrigins := []string{
-		"http://localhost:3000",
+		"https://codingwithkarim.github.io",
 		"https://postoblog.duckdns.org",
 	}
 
